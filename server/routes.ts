@@ -184,6 +184,10 @@ export async function registerRoutes(
       }
 
       await storage.verifyUser(user.id);
+      const verified = await storage.getUserById(user.id);
+      if (!verified?.emailVerified) {
+        return res.redirect("/?verified=error");
+      }
       return res.redirect("/?verified=success");
     } catch (error) {
       console.error("Verify error:", error);

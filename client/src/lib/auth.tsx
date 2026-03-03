@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 
@@ -19,7 +19,15 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const justVerified = new URLSearchParams(window.location.search).get("verified") === "success";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const clearedCache = useRef(false);
+  if (justVerified && !clearedCache.current) {
+    clearedCache.current = true;
+    queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
+  }
+
   const { data: user, isLoading } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
