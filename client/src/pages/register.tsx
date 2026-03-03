@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { UserPlus, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Eye, EyeOff, Mail, ArrowRight } from "lucide-react";
 
 const registerFormSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(30).regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, and underscores only"),
@@ -29,13 +29,14 @@ export default function RegisterPage() {
   const { user, register: registerUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Sign Up - NowPetMe";
   }, []);
 
   useEffect(() => {
-    if (user) navigate("/");
+    if (user && user.emailVerified) navigate("/");
   }, [user, navigate]);
 
   const form = useForm<RegisterFormValues>({
@@ -47,11 +48,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       await registerUser(values.username, values.email, values.password);
-      toast({
-        title: "Account created!",
-        description: "Check your email for a verification link to start uploading pets.",
-      });
-      navigate("/");
+      setRegisteredEmail(values.email);
     } catch (error: any) {
       const msg = error.message?.includes("409")
         ? error.message.includes("email") ? "An account with this email already exists" : "This username is already taken"
@@ -61,6 +58,35 @@ export default function RegisterPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-5">
+            <Mail className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2" data-testid="text-check-email-title">Check your email</h2>
+          <p className="text-muted-foreground text-sm mb-2">
+            We sent a verification link to
+          </p>
+          <p className="font-medium mb-4" data-testid="text-registered-email">{registeredEmail}</p>
+          <p className="text-muted-foreground text-sm mb-6">
+            Click the link in your email to verify your account. Once verified, you'll be able to upload pets and leave comments.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => navigate("/")} data-testid="button-continue-browsing">
+              Continue Browsing
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Didn't receive it? Check your spam folder or try signing up again.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">

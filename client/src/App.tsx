@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { Navbar } from "@/components/navbar";
+import { EmailVerificationBanner } from "@/components/email-banner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import UploadPage from "@/pages/upload";
@@ -36,6 +37,7 @@ function App() {
         <TooltipProvider>
           <div className="min-h-screen bg-background text-foreground">
             <Navbar />
+            <EmailVerificationBanner />
             <main>
               <Router />
             </main>
