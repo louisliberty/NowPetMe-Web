@@ -7,10 +7,24 @@ import { CategoryButtons } from "@/components/category-buttons";
 import { Heart, Upload, Trophy, ArrowRight, Sparkles } from "lucide-react";
 import type { Pet } from "@shared/schema";
 import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Home() {
+  const { toast } = useToast();
+
   useEffect(() => {
     document.title = "NowPetMe - Prove Your Pet's the Cutest!";
+    const params = new URLSearchParams(window.location.search);
+    const verified = params.get("verified");
+    if (verified === "success") {
+      toast({ title: "Email verified!", description: "You can now upload pets and leave comments." });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      window.history.replaceState({}, "", "/");
+    } else if (verified === "error") {
+      toast({ title: "Verification failed", description: "The link may be invalid or expired.", variant: "destructive" });
+      window.history.replaceState({}, "", "/");
+    }
   }, []);
 
   const { data: topPets, isLoading: topLoading } = useQuery<Pet[]>({

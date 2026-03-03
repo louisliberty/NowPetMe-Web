@@ -1,12 +1,20 @@
-import { pets, votes, comments, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment } from "@shared/schema";
+import { users, pets, votes, comments, type User, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
+  createUser(username: string, email: string, passwordHash: string, verificationToken: string): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
+  verifyUser(id: number): Promise<void>;
+  updateVerificationToken(id: number, token: string): Promise<void>;
+
   getPet(id: number): Promise<Pet | undefined>;
   getPets(options?: { category?: string; sort?: string; limit?: number; offset?: number }): Promise<Pet[]>;
   getTopPets(limit?: number, category?: string): Promise<Pet[]>;
-  createPet(pet: InsertPet, ownerIp: string): Promise<Pet>;
+  createPet(pet: InsertPet, ownerIp: string, ownerId?: number): Promise<Pet>;
   getPetCount(category?: string): Promise<number>;
 
   createVote(petId: number, score: number, voterIp: string): Promise<Vote>;
@@ -14,10 +22,43 @@ export interface IStorage {
   getUploadCount(ip: string): Promise<number>;
 
   getComments(petId: number): Promise<Comment[]>;
-  createComment(petId: number, text: string, commenterIp: string): Promise<Comment>;
+  createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async createUser(username: string, email: string, passwordHash: string, verificationToken: string): Promise<User> {
+    const [user] = await db.insert(users).values({ username, email, passwordHash, verificationToken }).returning();
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.verificationToken, token));
+    return user;
+  }
+
+  async verifyUser(id: number): Promise<void> {
+    await db.update(users).set({ emailVerified: true, verificationToken: null }).where(eq(users.id, id));
+  }
+
+  async updateVerificationToken(id: number, token: string): Promise<void> {
+    await db.update(users).set({ verificationToken: token }).where(eq(users.id, id));
+  }
+
   async getPet(id: number): Promise<Pet | undefined> {
     const [pet] = await db.select().from(pets).where(eq(pets.id, id));
     return pet;
@@ -56,8 +97,8 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async createPet(pet: InsertPet, ownerIp: string): Promise<Pet> {
-    const [created] = await db.insert(pets).values({ ...pet, ownerIp }).returning();
+  async createPet(pet: InsertPet, ownerIp: string, ownerId?: number): Promise<Pet> {
+    const [created] = await db.insert(pets).values({ ...pet, ownerIp, ownerId: ownerId || null }).returning();
     return created;
   }
 
@@ -110,8 +151,8 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(comments.createdAt));
   }
 
-  async createComment(petId: number, text: string, commenterIp: string): Promise<Comment> {
-    const [comment] = await db.insert(comments).values({ petId, text, commenterIp }).returning();
+  async createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment> {
+    const [comment] = await db.insert(comments).values({ petId, text, commenterIp, userId: userId || null }).returning();
     return comment;
   }
 }

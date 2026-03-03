@@ -1,11 +1,13 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { sendVerificationEmail } from "./email";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { insertPetSchema, insertVoteSchema, insertCommentSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import { insertPetSchema, insertVoteSchema, insertCommentSchema, registerSchema, loginSchema } from "@shared/schema";
 
 const uploadsDir = path.resolve("uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -35,6 +37,25 @@ function getClientIp(req: any): string {
   return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "unknown";
 }
 
+function requireAuth(req: Request, res: Response, next: Function) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "You must be logged in to do this" });
+  }
+  next();
+}
+
+function getBaseUrl(req: Request): string {
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+  }
+  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  const host = req.headers.host;
+  return `${proto}://${host}`;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -45,6 +66,144 @@ export async function registerRoutes(
       res.sendFile(filePath);
     } else {
       res.status(404).json({ message: "File not found" });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
+      }
+
+      const { username, email, password } = parsed.data;
+
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(409).json({ message: "An account with this email already exists" });
+      }
+
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(409).json({ message: "This username is already taken" });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+
+      const user = await storage.createUser(username, email, passwordHash, verificationToken);
+
+      try {
+        await sendVerificationEmail(email, verificationToken, getBaseUrl(req));
+      } catch (emailErr) {
+        console.error("Failed to send verification email:", emailErr);
+      }
+
+      req.session.userId = user.id;
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
+      }
+
+      const { email, password } = parsed.data;
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      req.session.userId = user.id;
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        emailVerified: user.emailVerified,
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
+
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      emailVerified: user.emailVerified,
+    });
+  });
+
+  app.get("/api/auth/verify", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token) {
+        return res.redirect("/?verified=error");
+      }
+
+      const user = await storage.getUserByVerificationToken(token);
+      if (!user) {
+        return res.redirect("/?verified=error");
+      }
+
+      await storage.verifyUser(user.id);
+      return res.redirect("/?verified=success");
+    } catch (error) {
+      console.error("Verify error:", error);
+      return res.redirect("/?verified=error");
+    }
+  });
+
+  app.post("/api/auth/resend-verification", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (user.emailVerified) return res.json({ message: "Email already verified" });
+
+      const token = crypto.randomBytes(32).toString("hex");
+      await storage.updateVerificationToken(user.id, token);
+      await sendVerificationEmail(user.email, token, getBaseUrl(req));
+      res.json({ message: "Verification email sent" });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ message: "Failed to resend verification email" });
     }
   });
 
@@ -100,8 +259,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/pets", upload.single("photo"), async (req, res) => {
+  app.post("/api/pets", requireAuth, upload.single("photo"), async (req: Request, res: Response) => {
     try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user || !user.emailVerified) {
+        return res.status(403).json({ message: "Please verify your email before uploading" });
+      }
+
       const ip = hashIp(getClientIp(req));
       const uploadCount = await storage.getUploadCount(ip);
       if (uploadCount >= 5) {
@@ -125,7 +289,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid pet data", errors: parsed.error.issues });
       }
 
-      const pet = await storage.createPet(parsed.data, ip);
+      const pet = await storage.createPet(parsed.data, ip, req.session.userId);
       res.status(201).json(pet);
     } catch (error) {
       res.status(500).json({ message: "Failed to create pet" });
@@ -174,8 +338,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/pets/:id/comments", async (req, res) => {
+  app.post("/api/pets/:id/comments", requireAuth, async (req: Request, res: Response) => {
     try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user || !user.emailVerified) {
+        return res.status(403).json({ message: "Please verify your email before commenting" });
+      }
+
       const petId = parseInt(req.params.id);
       const commentData = insertCommentSchema.extend({
         text: insertCommentSchema.shape.text.refine((v) => v.length >= 1 && v.length <= 50, "Comment must be 1-50 characters"),
@@ -191,7 +360,7 @@ export async function registerRoutes(
       }
 
       const ip = hashIp(getClientIp(req));
-      const comment = await storage.createComment(petId, commentData.data.text, ip);
+      const comment = await storage.createComment(petId, commentData.data.text, ip, req.session.userId);
       res.status(201).json(comment);
     } catch (error) {
       res.status(500).json({ message: "Failed to create comment" });

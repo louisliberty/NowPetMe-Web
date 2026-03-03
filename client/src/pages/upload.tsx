@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Upload, ImagePlus, X, Check, Copy } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Upload, ImagePlus, X, Check, Copy, LogIn, Mail } from "lucide-react";
 import { insertPetSchema, CATEGORIES } from "@shared/schema";
 import type { Pet } from "@shared/schema";
-import { useEffect } from "react";
 
 const uploadFormSchema = insertPetSchema.extend({
   name: z.string().min(1, "Pet name is required").max(50),
@@ -39,6 +39,7 @@ const categoryLabels: Record<string, string> = {
 export default function UploadPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -48,6 +49,43 @@ export default function UploadPage() {
   useEffect(() => {
     document.title = "Upload Your Pet - NowPetMe";
   }, []);
+
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <Card className="max-w-md w-full p-8 text-center">
+          <LogIn className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-bold mb-2" data-testid="text-login-required">Sign in to upload</h2>
+          <p className="text-muted-foreground text-sm mb-6">You need an account to upload your pets. Voting is always free!</p>
+          <div className="flex flex-col gap-2">
+            <Link href="/login">
+              <Button className="w-full" data-testid="button-goto-login">Sign In</Button>
+            </Link>
+            <Link href="/register">
+              <Button variant="secondary" className="w-full" data-testid="button-goto-register">Create Account</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!authLoading && user && !user.emailVerified) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <Card className="max-w-md w-full p-8 text-center">
+          <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-bold mb-2" data-testid="text-verify-required">Verify your email</h2>
+          <p className="text-muted-foreground text-sm mb-6">
+            Please check your inbox at <strong>{user.email}</strong> and click the verification link before uploading.
+          </p>
+          <Button variant="secondary" onClick={() => navigate("/")} data-testid="button-back-home">
+            Back to Home
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadFormSchema),
@@ -94,6 +132,7 @@ export default function UploadPage() {
       const res = await fetch("/api/pets", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!res.ok) {

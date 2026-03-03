@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StarRating } from "@/components/star-rating";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn } from "lucide-react";
 import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -59,6 +60,7 @@ export default function PetProfile() {
   const petId = parseInt(params.id);
   const { toast } = useToast();
 
+  const { user } = useAuth();
   const [selectedRating, setSelectedRating] = useState(0);
   const [commentText, setCommentText] = useState("");
 
@@ -244,28 +246,44 @@ export default function PetProfile() {
           Comments
         </h2>
 
-        <div className="flex gap-2 mb-6">
-          <Input
-            placeholder="Leave a comment (50 chars max)"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value.slice(0, 50))}
-            maxLength={50}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && commentText.trim()) {
-                commentMutation.mutate(commentText.trim());
-              }
-            }}
-            data-testid="input-comment"
-          />
-          <Button
-            size="icon"
-            disabled={!commentText.trim() || commentMutation.isPending}
-            onClick={() => commentMutation.mutate(commentText.trim())}
-            data-testid="button-submit-comment"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
+        {user && user.emailVerified ? (
+          <div className="flex gap-2 mb-6">
+            <Input
+              placeholder="Leave a comment (50 chars max)"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value.slice(0, 50))}
+              maxLength={50}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && commentText.trim()) {
+                  commentMutation.mutate(commentText.trim());
+                }
+              }}
+              data-testid="input-comment"
+            />
+            <Button
+              size="icon"
+              disabled={!commentText.trim() || commentMutation.isPending}
+              onClick={() => commentMutation.mutate(commentText.trim())}
+              data-testid="button-submit-comment"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-muted rounded-md p-4 mb-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2" data-testid="text-comment-login-prompt">
+              {user ? "Verify your email to leave comments" : "Sign in to leave a comment"}
+            </p>
+            {!user && (
+              <Link href="/login">
+                <Button size="sm" variant="secondary" data-testid="button-comment-login">
+                  <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
+          </div>
+        )}
 
         {commentsLoading ? (
           <div className="space-y-3">
