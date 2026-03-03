@@ -25,16 +25,15 @@ function CopyLinkButton({ url }: { url: string }) {
 
   return (
     <Button
-      variant="outline"
       size="sm"
       onClick={handleCopy}
-      className="transition-all duration-200"
+      className="bg-[#6C63FF] text-white border-[#6C63FF] transition-all duration-200"
       data-testid="button-copy-share-link"
     >
       {copied ? (
         <>
           <CheckIcon className="w-3.5 h-3.5 mr-1.5 text-green-500" />
-          <span className="text-green-600 dark:text-green-400">Copied!</span>
+          <span>Copied!</span>
         </>
       ) : (
         <>
