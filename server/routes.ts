@@ -8,6 +8,7 @@ import fs from "fs";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { insertPetSchema, insertVoteSchema, insertCommentSchema, registerSchema, loginSchema } from "@shared/schema";
+import { moderateImage } from "./moderation";
 
 const uploadsDir = path.resolve("uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -278,6 +279,12 @@ export async function registerRoutes(
 
       if (!req.file) {
         return res.status(400).json({ message: "Photo is required" });
+      }
+
+      const moderation = await moderateImage(req.file.path);
+      if (!moderation.approved) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: `Photo rejected: ${moderation.reason}` });
       }
 
       const petData = {

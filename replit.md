@@ -57,7 +57,7 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - Sessions stored in PostgreSQL via connect-pg-simple (30-day expiry)
 
 ## Features
-- Photo upload with drag & drop, file validation (5MB max)
+- Photo upload with drag & drop, file validation (5MB max), AI image moderation (GPT-4o-mini vision)
 - 1-10 star rating with IP-based one-vote-per-pet limit
 - 5 uploads per day limit per IP
 - Category filtering and sorting (newest, highest rated, most votes)
@@ -71,3 +71,10 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - Stored in `/uploads/` directory
 - Served via Express static middleware
 - Seed images in `client/public/images/`
+
+## Image Moderation
+- `server/moderation.ts` - Uses OpenAI GPT-4o-mini vision to analyze uploaded photos
+- Rejects non-pet photos, selfies without pets, offensive/inappropriate content
+- Approves photos containing pet animals (including humans with pets)
+- Rejected photos are deleted from disk immediately
+- Requires `OPENAI_API_KEY` environment secret
