@@ -37,7 +37,7 @@ export default function PetProfile() {
 
   useEffect(() => {
     if (pet) {
-      document.title = `${pet.name} - ${categoryLabels[pet.category] || "Pet"} | PetRateHub`;
+      document.title = `${pet.name} - ${categoryLabels[pet.category] || "Pet"} | NowPetMe`;
     }
   }, [pet]);
 
@@ -103,7 +103,7 @@ export default function PetProfile() {
 
   const avgRating = pet.voteCount > 0 ? (pet.totalScore / pet.voteCount).toFixed(1) : "0.0";
   const shareUrl = `${window.location.origin}/pet/${pet.id}`;
-  const shareText = `My ${categoryLabels[pet.category]?.toLowerCase() || "pet"} got ${avgRating}/10 on PetRateHub! Check out ${pet.name}!`;
+  const shareText = `My ${categoryLabels[pet.category]?.toLowerCase() || "pet"} got ${avgRating}/10 on NowPetMe! Check out ${pet.name}!`;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 pb-16">

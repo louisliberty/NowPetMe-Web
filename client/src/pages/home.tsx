@@ -10,7 +10,7 @@ import { useEffect } from "react";
 
 export default function Home() {
   useEffect(() => {
-    document.title = "PetRateHub - Prove Your Pet's the Cutest!";
+    document.title = "NowPetMe - Prove Your Pet's the Cutest!";
   }, []);
 
   const { data: topPets, isLoading: topLoading } = useQuery<Pet[]>({

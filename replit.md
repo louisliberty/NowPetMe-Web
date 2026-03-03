@@ -1,4 +1,4 @@
-# PetRateHub
+# NowPetMe
 
 A pet photo rating platform where users upload photos of their pets (dogs, cats, birds, rabbits, fish) and others rate their cuteness on a scale of 1-10. Features leaderboards, categories, voting, comments, and viral sharing.
 

@@ -37,7 +37,7 @@ export default function CategoryPage() {
 
   useEffect(() => {
     if (meta) {
-      document.title = `${meta.label} - Cutest ${meta.label} | PetRateHub`;
+      document.title = `${meta.label} - Cutest ${meta.label} | NowPetMe`;
     }
   }, [meta]);
 

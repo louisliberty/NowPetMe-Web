@@ -46,7 +46,7 @@ export default function UploadPage() {
   const [createdPet, setCreatedPet] = useState<Pet | null>(null);
 
   useEffect(() => {
-    document.title = "Upload Your Pet - PetRateHub";
+    document.title = "Upload Your Pet - NowPetMe";
   }, []);
 
   const form = useForm<UploadFormValues>({

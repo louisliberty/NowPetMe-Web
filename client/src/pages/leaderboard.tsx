@@ -23,7 +23,7 @@ export default function Leaderboard() {
   const [category, setCategory] = useState<string>("");
 
   useEffect(() => {
-    document.title = "Leaderboard - Cutest Pets | PetRateHub";
+    document.title = "Leaderboard - Cutest Pets | NowPetMe";
   }, []);
 
   const queryParams = category
