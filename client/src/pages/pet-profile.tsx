@@ -198,7 +198,7 @@ export default function PetProfile() {
                 onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank")}
                 data-testid="button-share-facebook"
               >
-                <SiFacebook className="w-3.5 h-3.5 mr-1.5" /> Share
+                <SiFacebook className="w-3.5 h-3.5 mr-1.5" /> Facebook
               </Button>
               <Button
                 variant="secondary"
