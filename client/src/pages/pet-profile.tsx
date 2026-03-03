@@ -177,24 +177,24 @@ export default function PetProfile() {
             <h3 className="font-semibold text-sm mb-2">Share</h3>
             <div className="flex gap-2 flex-wrap">
               <Button
-                variant="secondary"
                 size="sm"
+                className="bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
                 onClick={() => window.open(`https://www.tiktok.com/`, "_blank")}
                 data-testid="button-share-tiktok"
               >
                 <SiTiktok className="w-3.5 h-3.5 mr-1.5" /> TikTok
               </Button>
               <Button
-                variant="secondary"
                 size="sm"
+                className="bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white border-[#ee2a7b]"
                 onClick={() => window.open(`https://www.instagram.com/`, "_blank")}
                 data-testid="button-share-instagram"
               >
                 <SiInstagram className="w-3.5 h-3.5 mr-1.5" /> Instagram
               </Button>
               <Button
-                variant="secondary"
                 size="sm"
+                className="bg-[#1877F2] text-white border-[#1877F2]"
                 onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank")}
                 data-testid="button-share-facebook"
               >
