@@ -8,11 +8,43 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StarRating } from "@/components/star-rating";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Share2, MessageCircle, Clock, Send, ArrowLeft } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft } from "lucide-react";
 import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import type { Pet, Comment } from "@shared/schema";
+
+function CopyLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleCopy}
+      className="transition-all duration-200"
+      data-testid="button-copy-share-link"
+    >
+      {copied ? (
+        <>
+          <CheckIcon className="w-3.5 h-3.5 mr-1.5 text-green-500" />
+          <span className="text-green-600 dark:text-green-400">Copied!</span>
+        </>
+      ) : (
+        <>
+          <Link2 className="w-3.5 h-3.5 mr-1.5" />
+          Copy Link
+        </>
+      )}
+    </Button>
+  );
+}
 
 const categoryLabels: Record<string, string> = {
   dog: "Dog",
@@ -200,17 +232,8 @@ export default function PetProfile() {
               >
                 <SiFacebook className="w-3.5 h-3.5 mr-1.5" /> Facebook
               </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareUrl);
-                  toast({ title: "Link copied!" });
-                }}
-                data-testid="button-copy-share-link"
-              >
-                <Share2 className="w-3.5 h-3.5 mr-1.5" /> Copy Link
-              </Button>
+              <CopyLinkButton url={shareUrl} />
+
             </div>
           </div>
         </div>
