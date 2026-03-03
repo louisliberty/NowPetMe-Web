@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StarRating } from "@/components/star-rating";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -76,6 +77,39 @@ export default function PetProfile() {
 
   const { data: petComments, isLoading: commentsLoading } = useQuery<CommentWithUser[]>({
     queryKey: ["/api/pets", petId.toString(), "comments"],
+  });
+
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const editCommentMutation = useMutation({
+    mutationFn: async ({ commentId, text }: { commentId: number; text: string }) => {
+      const res = await apiRequest("PATCH", `/api/comments/${commentId}`, { text });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets", petId.toString(), "comments"] });
+      setEditingCommentId(null);
+      setEditText("");
+      toast({ title: "Comment updated!" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: number) => {
+      const res = await apiRequest("DELETE", `/api/comments/${commentId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets", petId.toString(), "comments"] });
+      toast({ title: "Comment deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const likeMutation = useMutation({
@@ -306,7 +340,7 @@ export default function PetProfile() {
             {petComments.map((comment) => (
               <div
                 key={comment.id}
-                className="bg-muted rounded-md px-3 py-2.5"
+                className="bg-muted rounded-md px-3 py-2.5 relative"
                 data-testid={`comment-${comment.id}`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -318,25 +352,83 @@ export default function PetProfile() {
                     <Clock className="w-3 h-3" />
                     {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ""}
                   </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm" data-testid={`comment-text-${comment.id}`}>{comment.text}</p>
-                  <button
-                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
-                      comment.hasLiked
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-                    }`}
-                    onClick={() => likeMutation.mutate(comment.id)}
-                    disabled={likeMutation.isPending}
-                    data-testid={`button-like-comment-${comment.id}`}
-                  >
-                    <ThumbsUp className={`w-3.5 h-3.5 ${comment.hasLiked ? "fill-current" : ""}`} />
-                    {comment.likeCount > 0 && (
-                      <span data-testid={`like-count-${comment.id}`}>{comment.likeCount}</span>
+                  <div className="ml-auto">
+                    {user && comment.userId === user.id && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1 rounded hover:bg-background/50 text-muted-foreground" data-testid={`button-comment-menu-${comment.id}`}>
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => { setEditingCommentId(comment.id); setEditText(comment.text); }}
+                            data-testid={`button-edit-comment-${comment.id}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => deleteCommentMutation.mutate(comment.id)}
+                            data-testid={`button-delete-comment-${comment.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                  </button>
+                  </div>
                 </div>
+                {editingCommentId === comment.id ? (
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value.slice(0, 50))}
+                      maxLength={50}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editText.trim()) {
+                          editCommentMutation.mutate({ commentId: comment.id, text: editText.trim() });
+                        }
+                        if (e.key === "Escape") {
+                          setEditingCommentId(null);
+                          setEditText("");
+                        }
+                      }}
+                      autoFocus
+                      data-testid={`input-edit-comment-${comment.id}`}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={!editText.trim() || editCommentMutation.isPending}
+                      onClick={() => editCommentMutation.mutate({ commentId: comment.id, text: editText.trim() })}
+                      data-testid={`button-save-comment-${comment.id}`}
+                    >
+                      <CheckIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm" data-testid={`comment-text-${comment.id}`}>{comment.text}</p>
+                    <button
+                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
+                        comment.hasLiked
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                      }`}
+                      onClick={() => likeMutation.mutate(comment.id)}
+                      disabled={likeMutation.isPending}
+                      data-testid={`button-like-comment-${comment.id}`}
+                    >
+                      <ThumbsUp className={`w-3.5 h-3.5 ${comment.hasLiked ? "fill-current" : ""}`} />
+                      {comment.likeCount > 0 && (
+                        <span data-testid={`like-count-${comment.id}`}>{comment.likeCount}</span>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

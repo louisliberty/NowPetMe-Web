@@ -23,6 +23,9 @@ export interface IStorage {
 
   getComments(petId: number, viewerIp: string): Promise<CommentWithUser[]>;
   createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment>;
+  getComment(commentId: number): Promise<Comment | undefined>;
+  updateComment(commentId: number, text: string): Promise<Comment>;
+  deleteComment(commentId: number): Promise<void>;
   likeComment(commentId: number, voterIp: string): Promise<void>;
   unlikeComment(commentId: number, voterIp: string): Promise<void>;
   hasLikedComment(commentId: number, voterIp: string): Promise<boolean>;
@@ -172,6 +175,21 @@ export class DatabaseStorage implements IStorage {
   async createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment> {
     const [comment] = await db.insert(comments).values({ petId, text, commenterIp, userId: userId || null }).returning();
     return comment;
+  }
+
+  async getComment(commentId: number): Promise<Comment | undefined> {
+    const [comment] = await db.select().from(comments).where(eq(comments.id, commentId));
+    return comment;
+  }
+
+  async updateComment(commentId: number, text: string): Promise<Comment> {
+    const [comment] = await db.update(comments).set({ text }).where(eq(comments.id, commentId)).returning();
+    return comment;
+  }
+
+  async deleteComment(commentId: number): Promise<void> {
+    await db.delete(commentLikes).where(eq(commentLikes.commentId, commentId));
+    await db.delete(comments).where(eq(comments.id, commentId));
   }
 
   async likeComment(commentId: number, voterIp: string): Promise<void> {

@@ -379,6 +379,50 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/comments/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      const comment = await storage.getComment(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      if (comment.userId !== req.session.userId) {
+        return res.status(403).json({ message: "You can only edit your own comments" });
+      }
+      const text = req.body.text?.trim();
+      if (!text || text.length < 1 || text.length > 50) {
+        return res.status(400).json({ message: "Comment must be 1-50 characters" });
+      }
+      const updated = await storage.updateComment(commentId, text);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update comment" });
+    }
+  });
+
+  app.delete("/api/comments/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      const comment = await storage.getComment(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      if (comment.userId !== req.session.userId) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
+      }
+      await storage.deleteComment(commentId);
+      res.json({ message: "Comment deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete comment" });
+    }
+  });
+
   app.post("/api/comments/:id/like", async (req, res) => {
     try {
       const commentId = parseInt(req.params.id);

@@ -47,6 +47,8 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - `POST /api/pets/:id/vote` - Vote for pet (body: {score}, **open to all**)
 - `GET /api/pets/:id/comments` - Get comments (returns CommentWithUser[] with username, likeCount, hasLiked)
 - `POST /api/pets/:id/comments` - Add comment (body: {text}, **requires auth + verified email**)
+- `PATCH /api/comments/:id` - Edit comment (body: {text}, **requires auth + ownership**)
+- `DELETE /api/comments/:id` - Delete comment (**requires auth + ownership**)
 - `POST /api/comments/:id/like` - Toggle thumbs-up on comment (IP-based, **open to all**)
 
 ## Auth Flow
