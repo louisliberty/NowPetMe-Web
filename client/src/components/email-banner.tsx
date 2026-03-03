@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, X } from "lucide-react";
+import { Mail, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function EmailVerificationBanner() {
@@ -10,6 +10,14 @@ export function EmailVerificationBanner() {
   const { toast } = useToast();
   const [dismissed, setDismissed] = useState(false);
   const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.emailVerified) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (!user || user.emailVerified || dismissed) return null;
 
