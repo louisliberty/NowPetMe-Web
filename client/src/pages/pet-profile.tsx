@@ -9,7 +9,7 @@ import { StarRating } from "@/components/star-rating";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Star, Share2, MessageCircle, Clock, Send, ArrowLeft } from "lucide-react";
-import { SiX, SiFacebook, SiWhatsapp } from "react-icons/si";
+import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import type { Pet, Comment } from "@shared/schema";
@@ -179,10 +179,18 @@ export default function PetProfile() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, "_blank")}
-                data-testid="button-share-twitter"
+                onClick={() => window.open(`https://www.tiktok.com/`, "_blank")}
+                data-testid="button-share-tiktok"
               >
-                <SiX className="w-3.5 h-3.5 mr-1.5" /> Post
+                <SiTiktok className="w-3.5 h-3.5 mr-1.5" /> TikTok
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.open(`https://www.instagram.com/`, "_blank")}
+                data-testid="button-share-instagram"
+              >
+                <SiInstagram className="w-3.5 h-3.5 mr-1.5" /> Instagram
               </Button>
               <Button
                 variant="secondary"
@@ -191,14 +199,6 @@ export default function PetProfile() {
                 data-testid="button-share-facebook"
               >
                 <SiFacebook className="w-3.5 h-3.5 mr-1.5" /> Share
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`, "_blank")}
-                data-testid="button-share-whatsapp"
-              >
-                <SiWhatsapp className="w-3.5 h-3.5 mr-1.5" /> WhatsApp
               </Button>
               <Button
                 variant="secondary"
