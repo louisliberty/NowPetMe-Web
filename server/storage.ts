@@ -1,4 +1,4 @@
-import { users, pets, votes, comments, type User, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment } from "@shared/schema";
+import { users, pets, votes, comments, commentLikes, type User, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment, type CommentWithUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
@@ -21,8 +21,12 @@ export interface IStorage {
   hasVoted(petId: number, voterIp: string): Promise<boolean>;
   getUploadCount(ip: string): Promise<number>;
 
-  getComments(petId: number): Promise<Comment[]>;
+  getComments(petId: number, viewerIp: string): Promise<CommentWithUser[]>;
   createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment>;
+  likeComment(commentId: number, voterIp: string): Promise<void>;
+  unlikeComment(commentId: number, voterIp: string): Promise<void>;
+  hasLikedComment(commentId: number, voterIp: string): Promise<boolean>;
+  getCommentLikeCount(commentId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -145,15 +149,50 @@ export class DatabaseStorage implements IStorage {
     return Number(result.count);
   }
 
-  async getComments(petId: number): Promise<Comment[]> {
-    return db.select().from(comments)
-      .where(eq(comments.petId, petId))
-      .orderBy(desc(comments.createdAt));
+  async getComments(petId: number, viewerIp: string): Promise<CommentWithUser[]> {
+    const rows = await db.execute(sql`
+      SELECT
+        c.id, c.pet_id as "petId", c.text, c.commenter_ip as "commenterIp",
+        c.user_id as "userId", c.created_at as "createdAt",
+        u.username,
+        COALESCE(lc.cnt, 0)::int as "likeCount",
+        CASE WHEN ml.id IS NOT NULL THEN true ELSE false END as "hasLiked"
+      FROM comments c
+      LEFT JOIN users u ON c.user_id = u.id
+      LEFT JOIN (
+        SELECT comment_id, COUNT(*) as cnt FROM comment_likes GROUP BY comment_id
+      ) lc ON lc.comment_id = c.id
+      LEFT JOIN comment_likes ml ON ml.comment_id = c.id AND ml.voter_ip = ${viewerIp}
+      WHERE c.pet_id = ${petId}
+      ORDER BY c.created_at DESC
+    `);
+    return rows.rows as CommentWithUser[];
   }
 
   async createComment(petId: number, text: string, commenterIp: string, userId?: number): Promise<Comment> {
     const [comment] = await db.insert(comments).values({ petId, text, commenterIp, userId: userId || null }).returning();
     return comment;
+  }
+
+  async likeComment(commentId: number, voterIp: string): Promise<void> {
+    await db.execute(sql`INSERT INTO comment_likes (comment_id, voter_ip) VALUES (${commentId}, ${voterIp}) ON CONFLICT (comment_id, voter_ip) DO NOTHING`);
+  }
+
+  async unlikeComment(commentId: number, voterIp: string): Promise<void> {
+    await db.delete(commentLikes).where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.voterIp, voterIp)));
+  }
+
+  async hasLikedComment(commentId: number, voterIp: string): Promise<boolean> {
+    const [existing] = await db.select().from(commentLikes)
+      .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.voterIp, voterIp)));
+    return !!existing;
+  }
+
+  async getCommentLikeCount(commentId: number): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(commentLikes)
+      .where(eq(commentLikes.commentId, commentId));
+    return Number(result.count);
   }
 }
 

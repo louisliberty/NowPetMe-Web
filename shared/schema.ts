@@ -44,6 +44,13 @@ export const comments = pgTable("comments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const commentLikes = pgTable("comment_likes", {
+  id: serial("id").primaryKey(),
+  commentId: integer("comment_id").notNull(),
+  voterIp: text("voter_ip").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(30).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
   email: z.string().email("Invalid email address"),
@@ -84,6 +91,13 @@ export type Vote = typeof votes.$inferSelect;
 export type InsertVote = z.infer<typeof insertVoteSchema>;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type CommentLike = typeof commentLikes.$inferSelect;
+
+export type CommentWithUser = Comment & {
+  username: string | null;
+  likeCount: number;
+  hasLiked: boolean;
+};
 
 export const CATEGORIES = ["dog", "cat", "bird", "rabbit", "fish", "other"] as const;
 export type Category = typeof CATEGORIES[number];

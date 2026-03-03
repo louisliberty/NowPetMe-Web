@@ -26,6 +26,7 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - **pets**: id, name, category, breed, photoUrl, story, totalScore, voteCount, ownerIp, ownerId, createdAt
 - **votes**: id, petId, voterIp, score, createdAt
 - **comments**: id, petId, text, commenterIp, userId, createdAt
+- **comment_likes**: id, commentId, voterIp, createdAt (unique constraint on commentId+voterIp)
 - **session** (auto-created by connect-pg-simple)
 
 ## API Endpoints
@@ -44,8 +45,9 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - `GET /api/pets/:id` - Single pet with hasVoted flag
 - `POST /api/pets` - Upload pet (multipart form, **requires auth + verified email**)
 - `POST /api/pets/:id/vote` - Vote for pet (body: {score}, **open to all**)
-- `GET /api/pets/:id/comments` - Get comments
+- `GET /api/pets/:id/comments` - Get comments (returns CommentWithUser[] with username, likeCount, hasLiked)
 - `POST /api/pets/:id/comments` - Add comment (body: {text}, **requires auth + verified email**)
+- `POST /api/comments/:id/like` - Toggle thumbs-up on comment (IP-based, **open to all**)
 
 ## Auth Flow
 - Visitors can browse, vote, and view freely (no login required)
@@ -61,7 +63,7 @@ A pet photo rating platform where users upload photos of their pets (dogs, cats,
 - Category filtering and sorting (newest, highest rated, most votes)
 - Leaderboard with rank icons and category filters
 - Social sharing (TikTok, Instagram, Facebook, copy link)
-- Comments (50 char max)
+- Comments (50 char max) with commenter username display and thumbs-up likes (IP-based toggle)
 - Mobile-responsive design
 - Per-page SEO titles
 

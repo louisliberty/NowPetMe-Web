@@ -335,7 +335,8 @@ export async function registerRoutes(
   app.get("/api/pets/:id/comments", async (req, res) => {
     try {
       const petId = parseInt(req.params.id);
-      const petComments = await storage.getComments(petId);
+      const ip = hashIp(getClientIp(req));
+      const petComments = await storage.getComments(petId, ip);
       res.json(petComments);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch comments" });
@@ -368,6 +369,29 @@ export async function registerRoutes(
       res.status(201).json(comment);
     } catch (error) {
       res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  app.post("/api/comments/:id/like", async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      const ip = hashIp(getClientIp(req));
+      const alreadyLiked = await storage.hasLikedComment(commentId, ip);
+
+      if (alreadyLiked) {
+        await storage.unlikeComment(commentId, ip);
+      } else {
+        await storage.likeComment(commentId, ip);
+      }
+
+      const likeCount = await storage.getCommentLikeCount(commentId);
+      const hasLiked = await storage.hasLikedComment(commentId, ip);
+      res.json({ likeCount, hasLiked });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to toggle like" });
     }
   });
 

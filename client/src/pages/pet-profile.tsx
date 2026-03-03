@@ -9,11 +9,11 @@ import { StarRating } from "@/components/star-rating";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon } from "lucide-react";
 import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
-import type { Pet, Comment } from "@shared/schema";
+import type { Pet, CommentWithUser } from "@shared/schema";
 
 function CopyLinkButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
@@ -74,8 +74,18 @@ export default function PetProfile() {
     }
   }, [pet]);
 
-  const { data: petComments, isLoading: commentsLoading } = useQuery<Comment[]>({
+  const { data: petComments, isLoading: commentsLoading } = useQuery<CommentWithUser[]>({
     queryKey: ["/api/pets", petId.toString(), "comments"],
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async (commentId: number) => {
+      const res = await apiRequest("POST", `/api/comments/${commentId}/like`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets", petId.toString(), "comments"] });
+    },
   });
 
   const voteMutation = useMutation({
@@ -296,14 +306,37 @@ export default function PetProfile() {
             {petComments.map((comment) => (
               <div
                 key={comment.id}
-                className="bg-muted rounded-md px-3 py-2.5 flex items-start justify-between gap-2"
+                className="bg-muted rounded-md px-3 py-2.5"
                 data-testid={`comment-${comment.id}`}
               >
-                <p className="text-sm">{comment.text}</p>
-                <span className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ""}
-                </span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="flex items-center gap-1 text-xs font-semibold text-primary" data-testid={`comment-username-${comment.id}`}>
+                    <UserIcon className="w-3 h-3" />
+                    {comment.username || "Anonymous"}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ""}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm" data-testid={`comment-text-${comment.id}`}>{comment.text}</p>
+                  <button
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
+                      comment.hasLiked
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                    }`}
+                    onClick={() => likeMutation.mutate(comment.id)}
+                    disabled={likeMutation.isPending}
+                    data-testid={`button-like-comment-${comment.id}`}
+                  >
+                    <ThumbsUp className={`w-3.5 h-3.5 ${comment.hasLiked ? "fill-current" : ""}`} />
+                    {comment.likeCount > 0 && (
+                      <span data-testid={`like-count-${comment.id}`}>{comment.likeCount}</span>
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
