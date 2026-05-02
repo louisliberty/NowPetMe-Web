@@ -62,43 +62,6 @@ export default function UploadPage() {
     document.title = "Upload Your Pet - NowPetMe";
   }, []);
 
-  if (!authLoading && !user) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
-        <Card className="max-w-md w-full p-8 text-center">
-          <LogIn className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-bold mb-2" data-testid="text-login-required">Sign in to upload</h2>
-          <p className="text-muted-foreground text-sm mb-6">You need an account to upload your pets. Voting is always free!</p>
-          <div className="flex flex-col gap-2">
-            <Link href="/login">
-              <Button className="w-full" data-testid="button-goto-login">Sign In</Button>
-            </Link>
-            <Link href="/register">
-              <Button variant="secondary" className="w-full" data-testid="button-goto-register">Create Account</Button>
-            </Link>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!authLoading && user && !user.emailVerified) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
-        <Card className="max-w-md w-full p-8 text-center">
-          <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-xl font-bold mb-2" data-testid="text-verify-required">Verify your email</h2>
-          <p className="text-muted-foreground text-sm mb-6">
-            Please check your inbox at <strong>{user.email}</strong> and click the verification link before uploading.
-          </p>
-          <Button variant="secondary" onClick={() => navigate("/")} data-testid="button-back-home">
-            Back to Home
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadFormSchema),
     defaultValues: {
@@ -176,6 +139,43 @@ export default function UploadPage() {
     }
     uploadMutation.mutate(values);
   };
+
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <Card className="max-w-md w-full p-8 text-center">
+          <LogIn className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-bold mb-2" data-testid="text-login-required">Sign in to upload</h2>
+          <p className="text-muted-foreground text-sm mb-6">You need an account to upload your pets. Voting is always free!</p>
+          <div className="flex flex-col gap-2">
+            <Link href="/login">
+              <Button className="w-full" data-testid="button-goto-login">Sign In</Button>
+            </Link>
+            <Link href="/register">
+              <Button variant="secondary" className="w-full" data-testid="button-goto-register">Create Account</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!authLoading && user && !user.emailVerified) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <Card className="max-w-md w-full p-8 text-center">
+          <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-bold mb-2" data-testid="text-verify-required">Verify your email</h2>
+          <p className="text-muted-foreground text-sm mb-6">
+            Please check your inbox at <strong>{user.email}</strong> and click the verification link before uploading.
+          </p>
+          <Button variant="secondary" onClick={() => navigate("/")} data-testid="button-back-home">
+            Back to Home
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   if (createdPet) {
     const shareUrl = `${window.location.origin}/pet/${createdPet.id}`;
