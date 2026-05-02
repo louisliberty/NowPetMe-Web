@@ -1,0 +1,266 @@
+You are updating NowPetMe, a pet photo rating and social platform. Implement ALL of the following features carefully, without breaking any existing functionality. Read the existing codebase thoroughly before making changes. Implement features one at a time and test each before moving to the next.
+
+---
+
+## PRIORITY CLUSTER (implement first, in this order):
+
+### 1. BAYESIAN WEIGHTED LEADERBOARD SCORING
+
+Replace the current average-rating sort with a Bayesian weighted score so that pets with more votes rank more reliably than pets with very few votes.
+
+Formula:
+  bayesian_score = (v / (v + m)) * R + (m / (v + m)) * C
+
+Where:
+  v = number of votes for this pet
+  R = average rating for this pet
+  m = minimum votes threshold (use 10 as the constant)
+  C = global average rating across ALL pets
+
+Implementation:
+- Add a computed `bayesian_score` column to the pets table (or calculate it on the fly in queries)
+- Recalculate on every new vote
+- Use bayesian_score for all leaderboard and category sorting (when sort = "top-rated")
+- Keep showing the real average star rating to users (don't display the Bayesian score directly — it's just for ranking)
+- Update all existing leaderboard queries, homepage top-rated sections, and category pages to use this new sort
+
+---
+
+### 2. PET OF THE DAY
+
+Select and feature one "Pet of the Day" on the homepage with a special visual treatment.
+
+Logic:
+- Each day at midnight (server time), select the pet with the highest bayesian_score that has NOT been Pet of the Day in the last 30 days
+- Store the selected pet and the date in a `pet_of_the_day` table (columns: id, pet_id, date)
+- If no eligible pet exists, pick the highest-scored pet regardless of recency
+
+Homepage display:
+- Show Pet of the Day ABOVE the regular top-rated section
+- Give it a large, prominent card with a golden/amber crown icon (👑) and the label "Pet of the Day"
+- Show the pet's photo, name, category, current average rating, and vote count
+- Add a subtle animated shimmer or glowing golden border effect on the card using CSS animation
+- Include a "Vote Now" button that scrolls to / links to the pet's full profile page
+
+Notification (if email is set up via Resend):
+- When a new Pet of the Day is selected, send the pet's owner an email: Subject: "🎉 [Pet Name] is today's Pet of the Day on NowPetMe!" Body: Congratulate them, show the pet's current stats, and include a link to their pet's page with encouragement to share it on social media.
+
+---
+
+### 3. ANIMATED VOTE REACTIONS
+
+Make the voting experience feel fun and rewarding with animations triggered when a user submits a vote.
+
+Implementation:
+- After a user submits their star rating and the server confirms success, trigger an animation overlay on the pet's photo/card area
+- For ratings 8–10: Launch a burst of animated paw print emojis (🐾) that fly upward and fade out — at least 12 particles, randomized direction and timing. Add a brief golden flash/pulse on the star rating display.
+- For ratings 4–7: Show a gentle shower of small heart emojis (🩷) that float up and fade.
+- For ratings 1–3: Show a few small sad face emojis (😢) that drift downward and fade.
+- All animations should complete within 1.5 seconds and not block any UI
+- Animate the score counter: when the displayed average rating updates after a vote, use a smooth number roll/count-up animation (not a hard jump)
+- On the star selector itself: when the user hovers over stars, add a small "bounce" CSS animation to each star as the cursor passes over it
+- Use CSS keyframe animations and/or a lightweight JS animation (no heavy libraries — vanilla JS or whatever animation utility is already in the project)
+
+---
+
+### 4. SHAREABLE IMAGE CARDS (Spotify Wrapped-style)
+
+Auto-generate a beautiful, branded image card for each pet that owners (and visitors) can download and share on Instagram Stories, TikTok, etc.
+
+Implementation — Server-side card generation:
+- Use an HTML Canvas approach (client-side) OR a server-side image generation library (e.g., sharp, canvas, or Puppeteer if available in the environment)
+- Preferred approach: Use an HTML Canvas rendered client-side, then converted to a downloadable PNG
+
+Card design (1080x1920px — vertical Stories format, or offer both 1:1 and 9:16):
+- Background: a gradient using the NowPetMe coral/teal brand colors, with a subtle paw print watermark pattern
+- Pet photo: centered, large, with a soft rounded-rectangle mask and a gentle drop shadow
+- Pet name in large, bold Plus Jakarta Sans font
+- Category badge (e.g., "🐕 Dog") 
+- Star rating displayed as filled stars ⭐⭐⭐⭐⭐ with the numeric average (e.g., "9.2 / 10")
+- Vote count (e.g., "247 votes")
+- Rank badge if in top 10 (e.g., "#3 on NowPetMe 🏆")
+- NowPetMe logo/wordmark at the bottom with the URL
+- A subtle "Vote for me!" call to action
+
+UI trigger:
+- Add a "Share Card 📲" button on every pet profile page (visible to everyone, not just the owner)
+- When clicked, open a modal showing a preview of the generated card
+- Offer two buttons in the modal: "Download PNG" and "Copy Link"
+- The "Copy Link" copies the pet's direct profile URL (for non-image sharing)
+- Add quick-share icon buttons below: Instagram (opens share intent), TikTok, Facebook, Twitter/X — these can open the respective app/site with the link pre-filled
+
+---
+
+## SECONDARY FEATURES (implement after the priority cluster):
+
+### 5. GAMIFICATION — XP & LEVELS
+
+Add an experience point system for logged-in users.
+
+XP rules:
+- Cast a vote: +1 XP
+- Leave a comment: +3 XP  
+- Upload a pet: +10 XP
+- Receive a thumbs-up on your comment: +2 XP
+- Your pet receives a vote: +1 XP
+- Your pet becomes Pet of the Day: +50 XP
+
+Levels (based on cumulative XP):
+  0–49 XP      → "Pet Admirer" 🐾
+  50–149 XP    → "Pet Enthusiast" 🐱
+  150–399 XP   → "Pet Connoisseur" 🐶
+  400–999 XP   → "Pet Expert" 🦜
+  1000+ XP     → "Pet Legend" 🏆
+
+Database:
+- Add `xp` integer column (default 0) to the users table
+- Add `level` computed label (can be derived from xp, no need to store)
+- Log XP events in an `xp_events` table (user_id, amount, reason, created_at) for auditability
+
+Display:
+- Show level badge + XP bar (progress to next level) on the user's profile page
+- Show the level badge icon next to the username in comments and on pet cards
+- When a user gains XP, show a small "+X XP" toast notification that floats up and fades
+
+---
+
+### 6. BADGES & ACHIEVEMENTS
+
+One-time unlockable achievements stored in an `achievements` table.
+
+Achievements to implement:
+  "First Steps"       — Upload your first pet
+  "Voter"             — Cast 10 votes
+  "Super Voter"       — Cast 100 votes
+  "Storyteller"       — Leave 10 comments
+  "Fan Favorite"      — Receive 10 thumbs-ups on a single comment
+  "Rising Star"       — Your pet reaches top 10 on its category leaderboard
+  "Viral Pet"         — Your pet receives 50 votes in a single day
+  "Daily Champion"    — Your pet becomes Pet of the Day
+  "Devoted Fan"       — Visit the site 7 days in a row (track with session/cookie)
+  "Pet Legend"        — Reach 1000 XP
+
+Implementation:
+- Check for achievement unlock after every relevant action
+- Store unlocked achievements in `user_achievements` table (user_id, achievement_key, unlocked_at)
+- Show achievements as a grid of badge icons on the user profile page (locked badges shown as greyed out silhouettes)
+- Trigger a special full-screen confetti burst (using canvas-confetti or a pure CSS/JS confetti) when a new achievement unlocks, plus a toast: "🏅 Achievement Unlocked: [Name]!"
+
+---
+
+### 7. "HOT RIGHT NOW" FEED
+
+Add a "Hot 🔥" tab or section that shows pets gaining the most votes in the last 6 hours.
+
+Logic:
+- Query votes cast in the last 6 hours, group by pet_id, order by count descending
+- Show top 10 results
+- Display on the homepage as a horizontally scrollable row of pet cards (mobile-friendly)
+- Each card shows the pet photo, name, and a "🔥 +N votes" badge showing recent vote count
+- Update every 5 minutes (use a setInterval client-side refresh or server-sent events if already in the stack)
+
+---
+
+### 8. "SURPRISE ME" BUTTON
+
+Add a "Surprise Me 🎲" button in the main navigation or homepage hero area.
+
+- Clicking it fetches a random pet from the database (SQL: ORDER BY RANDOM() LIMIT 1)
+- Navigates the user to that pet's profile page
+- Add a subtle spin/shuffle animation on the button icon when clicked
+
+---
+
+### 9. DAILY VOTING STREAK
+
+Track consecutive days a logged-in user has cast at least one vote.
+
+- Store `last_vote_date` and `vote_streak` on the user record
+- Each day the user votes, increment the streak; if they miss a day, reset to 1
+- Display their current streak on their profile: "🔥 7-day voting streak!"
+- Award +5 bonus XP for maintaining a streak milestone (3 days, 7 days, 30 days)
+- Show a streak reminder banner to logged-in users who haven't voted today: "Keep your streak alive! Vote on a pet today 🔥"
+
+---
+
+### 10. EMOJI REACTIONS ON COMMENTS
+
+Replace the single thumbs-up with a small set of emoji reactions.
+
+Options: 😂 🥺 😍 🐾 ❤️
+- Store reactions in a `comment_reactions` table (comment_id, user_ip OR user_id, emoji, created_at)
+- On hover/tap of the reaction area, show a small emoji picker popup
+- Display reaction counts grouped by emoji below each comment
+- One reaction per user per comment (switching is allowed; removes the old one)
+- Keep IP-based tracking for logged-out users, user_id for logged-in
+
+---
+
+### 11. PERSONALITY TAGS ON PETS
+
+During the pet upload flow, add an optional "Personality" multi-select step.
+
+Tag options:
+  Lazy 😴 | Chaotic 🌪️ | Foodie 🍕 | Cuddler 🤗 | Judgy 👀 | Zoomies ⚡ | Drama Queen 🎭 | Silent Type 🤫 | Goofball 🤪 | Old Soul 🧓
+
+Implementation:
+- Add a `personality_tags` text array column to the pets table
+- Show tags as selectable chip buttons in the upload form (max 3 selectable)
+- Display selected tags as colorful pill badges on the pet profile page
+- Allow filtering/browsing pets by personality tag (add tag filter to category pages)
+
+---
+
+### 12. USER PROFILE PAGES
+
+Create public profile pages at /profile/[username].
+
+Display:
+- Username, level badge, XP progress bar
+- Achievements grid
+- Vote streak
+- All pets uploaded by this user (in a grid)
+- Recent comments by this user
+- Join date
+- Stats: total pets uploaded, total votes received across all their pets, total comments
+
+---
+
+### 13. PASSWORD RESET FLOW
+
+Implement a complete forgot-password flow using the existing Resend email setup.
+
+Flow:
+1. "Forgot password?" link on the login page
+2. User enters their email → receive a reset link (tokenized, expires in 1 hour)
+3. Link opens a reset page where they enter a new password (with confirmation)
+4. On success, invalidate the token and all existing sessions, redirect to login with success toast
+5. Store reset tokens in a `password_reset_tokens` table (token, user_id, expires_at, used_at)
+
+---
+
+### 14. REPORT / FLAG BUTTON
+
+Add a discreet flag button on pet cards and comments.
+
+- Small flag icon 🚩 in the corner of each pet card and each comment
+- Clicking opens a modal: "Why are you reporting this?" with options: Inappropriate Content | Not a Pet | Spam | Other
+- Store reports in a `reports` table (reporter_ip, target_type [pet/comment], target_id, reason, created_at)
+- No duplicate reports from same IP for same target
+- Show the user a "Thanks for your report" confirmation — no further action shown to them
+
+---
+
+## GENERAL IMPLEMENTATION RULES:
+
+- Do NOT break any existing features: auth, voting, uploading, AI moderation, comments, leaderboards, sharing
+- Maintain the existing coral/teal color palette and Plus Jakarta Sans typography throughout all new UI
+- All new features must be fully mobile-responsive
+- All new database tables need proper indexes on foreign keys and frequently queried columns
+- Use transactions where multiple DB writes must succeed together (e.g., XP + achievement unlock)
+- Add loading states and error handling to all new async operations
+- Toast notifications should use the existing toast system already in the project
+- All animations must respect `prefers-reduced-motion` media query — disable or simplify animations for users who have it enabled
+- Test that the Bayesian leaderboard correctly handles edge cases: pets with 0 votes, pets with exactly 1 vote, and the global average when no pets have been rated yet
+
+Begin with the Priority Cluster (items 1–4) in order, then proceed through items 5–14. Confirm each section works before moving to the next.
