@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, serial, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, serial, boolean, real, date, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -22,10 +22,22 @@ export const pets = pgTable("pets", {
   story: text("story"),
   totalScore: integer("total_score").notNull().default(0),
   voteCount: integer("vote_count").notNull().default(0),
+  bayesianScore: real("bayesian_score").notNull().default(0),
   ownerIp: text("owner_ip"),
   ownerId: integer("owner_id"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  bayesianIdx: index("pets_bayesian_idx").on(t.bayesianScore),
+  categoryIdx: index("pets_category_idx").on(t.category),
+}));
+
+export const petOfTheDay = pgTable("pet_of_the_day", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  date: date("date").notNull(),
+}, (t) => ({
+  dateIdx: uniqueIndex("pet_of_the_day_date_idx").on(t.date),
+}));
 
 export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
@@ -92,6 +104,7 @@ export type InsertVote = z.infer<typeof insertVoteSchema>;
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type CommentLike = typeof commentLikes.$inferSelect;
+export type PetOfTheDay = typeof petOfTheDay.$inferSelect;
 
 export type CommentWithUser = Comment & {
   username: string | null;

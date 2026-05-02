@@ -10,7 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon, MoreVertical, Pencil, Trash2, Share2 } from "lucide-react";
+import { VoteBurst } from "@/components/vote-burst";
+import { AnimatedNumber } from "@/components/animated-number";
+import { ShareCardModal } from "@/components/share-card-modal";
 import { SiTiktok, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -64,6 +67,9 @@ export default function PetProfile() {
   const { user } = useAuth();
   const [selectedRating, setSelectedRating] = useState(0);
   const [commentText, setCommentText] = useState("");
+  const [burstRating, setBurstRating] = useState<number | null>(null);
+  const [starFlash, setStarFlash] = useState(false);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
 
   const { data: pet, isLoading: petLoading } = useQuery<Pet & { hasVoted: boolean }>({
     queryKey: ["/api/pets", petId.toString()],
@@ -125,12 +131,18 @@ export default function PetProfile() {
   const voteMutation = useMutation({
     mutationFn: async (score: number) => {
       const res = await apiRequest("POST", `/api/pets/${petId}/vote`, { score });
-      return res.json();
+      return { ...(await res.json()), _score: score };
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets", petId.toString()] });
       queryClient.invalidateQueries({ queryKey: ["/api/pets/top"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      const score = data?._score ?? selectedRating;
+      setBurstRating(score);
+      if (score >= 8) {
+        setStarFlash(true);
+        setTimeout(() => setStarFlash(false), 900);
+      }
       toast({ title: "Vote recorded!", description: "Thanks for rating this cutie!" });
       setSelectedRating(0);
     },
@@ -193,13 +205,16 @@ export default function PetProfile() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <div className="rounded-md overflow-hidden bg-muted">
+          <div className="relative rounded-md overflow-hidden bg-muted">
             <img
               src={pet.photoUrl}
               alt={pet.name}
               className="w-full aspect-square object-cover"
               data-testid="img-pet-hero"
             />
+            {burstRating !== null && (
+              <VoteBurst rating={burstRating} onDone={() => setBurstRating(null)} />
+            )}
           </div>
         </div>
 
@@ -216,8 +231,10 @@ export default function PetProfile() {
 
           <div className="flex items-center gap-3 py-3 border-y">
             <div className="flex items-center gap-1.5">
-              <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
-              <span className="text-2xl font-bold" data-testid="text-avg-rating">{avgRating}</span>
+              <Star className={`w-6 h-6 fill-amber-400 text-amber-400 ${starFlash ? "star-flash" : ""}`} />
+              <span className="text-2xl font-bold" data-testid="text-avg-rating">
+                <AnimatedNumber value={parseFloat(avgRating)} decimals={1} />
+              </span>
               <span className="text-muted-foreground">/10</span>
             </div>
             <span className="text-sm text-muted-foreground" data-testid="text-vote-count">
@@ -278,9 +295,18 @@ export default function PetProfile() {
                 <SiFacebook className="w-3.5 h-3.5 mr-1.5" /> Facebook
               </Button>
               <CopyLinkButton url={shareUrl} />
-
+              <Button
+                size="sm"
+                variant="default"
+                className="bg-gradient-to-r from-primary to-chart-2 text-white border-0"
+                onClick={() => setShareCardOpen(true)}
+                data-testid="button-share-card"
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1.5" /> Share Card
+              </Button>
             </div>
           </div>
+          <ShareCardModal pet={pet} open={shareCardOpen} onOpenChange={setShareCardOpen} />
         </div>
       </div>
 

@@ -1,6 +1,8 @@
-import { users, pets, votes, comments, commentLikes, type User, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment, type CommentWithUser } from "@shared/schema";
+import { users, pets, votes, comments, commentLikes, petOfTheDay, type User, type Pet, type InsertPet, type Vote, type InsertVote, type Comment, type InsertComment, type CommentWithUser, type PetOfTheDay } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, notInArray, gte } from "drizzle-orm";
+
+const BAYES_M = 10;
 
 export interface IStorage {
   createUser(username: string, email: string, passwordHash: string, verificationToken: string): Promise<User>;
@@ -16,6 +18,8 @@ export interface IStorage {
   getTopPets(limit?: number, category?: string): Promise<Pet[]>;
   createPet(pet: InsertPet, ownerIp: string, ownerId?: number): Promise<Pet>;
   getPetCount(category?: string): Promise<number>;
+
+  getOrSelectPetOfTheDay(): Promise<{ pet: Pet; isNew: boolean } | undefined>;
 
   createVote(petId: number, score: number, voterIp: string): Promise<Vote>;
   hasVoted(petId: number, voterIp: string): Promise<boolean>;
@@ -81,8 +85,8 @@ export class DatabaseStorage implements IStorage {
     }
 
     let orderBy;
-    if (sort === "highest") {
-      orderBy = sql`CASE WHEN ${pets.voteCount} > 0 THEN CAST(${pets.totalScore} AS FLOAT) / ${pets.voteCount} ELSE 0 END DESC`;
+    if (sort === "highest" || sort === "top-rated") {
+      orderBy = desc(pets.bayesianScore);
     } else if (sort === "most_votes") {
       orderBy = desc(pets.voteCount);
     } else {
@@ -100,8 +104,45 @@ export class DatabaseStorage implements IStorage {
     }
 
     return (query as any)
-      .orderBy(sql`CASE WHEN ${pets.voteCount} > 0 THEN CAST(${pets.totalScore} AS FLOAT) / ${pets.voteCount} ELSE 0 END DESC`)
+      .orderBy(desc(pets.bayesianScore))
       .limit(limit);
+  }
+
+  async getOrSelectPetOfTheDay(): Promise<{ pet: Pet; isNew: boolean } | undefined> {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [existing] = await db.select().from(petOfTheDay).where(eq(petOfTheDay.date, today));
+    if (existing) {
+      const [pet] = await db.select().from(pets).where(eq(pets.id, existing.petId));
+      return pet ? { pet, isNew: false } : undefined;
+    }
+
+    const recent = await db.execute(sql`SELECT pet_id FROM pet_of_the_day WHERE date >= CURRENT_DATE - INTERVAL '30 days'`);
+    const recentIds = (recent.rows as any[]).map((r) => r.pet_id as number);
+
+    let pickQuery = db.select().from(pets).where(sql`${pets.voteCount} > 0`);
+    if (recentIds.length > 0) {
+      pickQuery = db.select().from(pets).where(and(sql`${pets.voteCount} > 0`, notInArray(pets.id, recentIds))) as any;
+    }
+    let candidates = await (pickQuery as any).orderBy(desc(pets.bayesianScore)).limit(1);
+
+    if (!candidates.length) {
+      candidates = await db.select().from(pets).where(sql`${pets.voteCount} > 0`).orderBy(desc(pets.bayesianScore)).limit(1);
+    }
+    if (!candidates.length) return undefined;
+
+    const pick = candidates[0] as Pet;
+    try {
+      await db.insert(petOfTheDay).values({ petId: pick.id, date: today });
+      return { pet: pick, isNew: true };
+    } catch {
+      const [again] = await db.select().from(petOfTheDay).where(eq(petOfTheDay.date, today));
+      if (again) {
+        const [pet] = await db.select().from(pets).where(eq(pets.id, again.petId));
+        return pet ? { pet, isNew: false } : undefined;
+      }
+      return { pet: pick, isNew: false };
+    }
   }
 
   async createPet(pet: InsertPet, ownerIp: string, ownerId?: number): Promise<Pet> {
@@ -130,7 +171,21 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(pets.id, petId));
 
+    await this.recalcBayesianScores();
     return vote;
+  }
+
+  async recalcBayesianScores(): Promise<void> {
+    await db.execute(sql`
+      WITH g AS (
+        SELECT COALESCE(SUM(total_score)::float / NULLIF(SUM(vote_count), 0), 5.0) AS c
+        FROM pets WHERE vote_count > 0
+      )
+      UPDATE pets SET bayesian_score =
+        (vote_count::float / (vote_count + ${BAYES_M})) *
+          (CASE WHEN vote_count > 0 THEN total_score::float / vote_count ELSE 0 END)
+        + (${BAYES_M}::float / (vote_count + ${BAYES_M})) * (SELECT c FROM g)
+    `);
   }
 
   async hasVoted(petId: number, voterIp: string): Promise<boolean> {

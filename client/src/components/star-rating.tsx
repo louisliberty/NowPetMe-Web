@@ -44,7 +44,7 @@ export function StarRating({
             disabled={readOnly}
             className={cn(
               "transition-all duration-150",
-              !readOnly && "cursor-pointer",
+              !readOnly && "cursor-pointer star-bounce-on-hover",
               readOnly && "cursor-default"
             )}
             onClick={() => !readOnly && onChange?.(starValue)}

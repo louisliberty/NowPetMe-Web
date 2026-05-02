@@ -38,6 +38,40 @@ export async function getUncachableResendClient() {
   };
 }
 
+export async function sendPetOfTheDayEmail(to: string, petName: string, petId: number, avgRating: string, voteCount: number, baseUrl: string) {
+  const { client, fromEmail } = await getUncachableResendClient();
+  const petUrl = `${baseUrl}/pet/${petId}`;
+  await client.emails.send({
+    from: fromEmail || 'NowPetMe <onboarding@resend.dev>',
+    to,
+    subject: `🎉 ${petName} is today's Pet of the Day on NowPetMe!`,
+    html: `
+      <div style="font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="font-size: 56px;">👑</div>
+          <h1 style="margin: 8px 0 0; font-size: 26px; color: #1a1a1a;">Pet of the Day!</h1>
+        </div>
+        <p style="color: #333; font-size: 16px; line-height: 1.6; text-align: center;">
+          Huge congrats — <strong>${petName}</strong> has been crowned today's Pet of the Day on NowPetMe! 🎉
+        </p>
+        <div style="background: linear-gradient(135deg, #FF6B6B22, #4ECDC422); border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+          <div style="font-size: 14px; color: #555;">Current rating</div>
+          <div style="font-size: 32px; font-weight: 700; color: #1a1a1a;">⭐ ${avgRating} / 10</div>
+          <div style="font-size: 13px; color: #666; margin-top: 4px;">${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}</div>
+        </div>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${petUrl}" style="display: inline-block; background: #FF6B6B; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+            View ${petName}'s page
+          </a>
+        </div>
+        <p style="color: #555; font-size: 14px; line-height: 1.6; text-align: center;">
+          Now's the perfect time to share ${petName} on social media and rack up votes while they're in the spotlight!
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendVerificationEmail(to: string, token: string, baseUrl: string) {
   const { client, fromEmail } = await getUncachableResendClient();
   const verifyUrl = `${baseUrl}/api/auth/verify?token=${token}`;

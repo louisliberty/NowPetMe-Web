@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { sendVerificationEmail } from "./email";
+import { sendVerificationEmail, sendPetOfTheDayEmail } from "./email";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -234,6 +234,25 @@ export async function registerRoutes(
       res.json({ count });
     } catch (error) {
       res.status(500).json({ message: "Failed to get count" });
+    }
+  });
+
+  app.get("/api/pets/of-the-day", async (req, res) => {
+    try {
+      const result = await storage.getOrSelectPetOfTheDay();
+      if (!result) return res.json(null);
+      const { pet, isNew } = result;
+      if (isNew && pet.ownerId) {
+        const owner = await storage.getUserById(pet.ownerId);
+        if (owner?.email && owner.emailVerified) {
+          const avg = pet.voteCount > 0 ? (pet.totalScore / pet.voteCount).toFixed(1) : "0.0";
+          sendPetOfTheDayEmail(owner.email, pet.name, pet.id, avg, pet.voteCount, getBaseUrl(req)).catch((e) => console.error("POTD email failed:", e));
+        }
+      }
+      res.json(pet);
+    } catch (error) {
+      console.error("POTD error:", error);
+      res.status(500).json({ message: "Failed to fetch pet of the day" });
     }
   });
 

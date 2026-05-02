@@ -175,6 +175,53 @@
   }
 }
 
+/* Vote burst animations */
+@keyframes vote-burst-up {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 1; transform: translate(0, -10px) scale(1); }
+  100% { transform: translate(var(--drift, 0px), -260px) scale(1.1); opacity: 0; }
+}
+@keyframes vote-burst-down {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.9; transform: translate(0, 10px) scale(1); }
+  100% { transform: translate(var(--drift, 0px), 220px) scale(0.95); opacity: 0; }
+}
+
+/* Star bounce on hover */
+@keyframes star-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3) translateY(-3px); }
+  100% { transform: scale(1.15); }
+}
+.star-bounce-on-hover:hover { animation: star-bounce 220ms ease-out forwards; }
+
+/* Star pulse flash on high vote */
+@keyframes star-flash {
+  0% { filter: drop-shadow(0 0 0 rgba(251, 191, 36, 0)); transform: scale(1); }
+  40% { filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.95)); transform: scale(1.18); }
+  100% { filter: drop-shadow(0 0 0 rgba(251, 191, 36, 0)); transform: scale(1); }
+}
+.star-flash { animation: star-flash 900ms ease-out; }
+
+/* Pet of the Day shimmering golden border */
+@keyframes potd-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.potd-shimmer-wrap {
+  padding: 3px;
+  background: linear-gradient(110deg, #fbbf24, #fde68a, #f59e0b, #fde68a, #fbbf24);
+  background-size: 200% 100%;
+  animation: potd-shimmer 4s linear infinite;
+}
+.potd-card { border-radius: calc(var(--radius) - 2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .potd-shimmer-wrap { animation: none; background: #fbbf24; }
+  .star-bounce-on-hover:hover { animation: none; }
+  .star-flash { animation: none; }
+}
+
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.

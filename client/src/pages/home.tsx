@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PetCard } from "@/components/pet-card";
 import { CategoryButtons } from "@/components/category-buttons";
+import { PetOfDay } from "@/components/pet-of-day";
 import { Heart, Upload, Trophy, ArrowRight, Sparkles } from "lucide-react";
 import type { Pet } from "@shared/schema";
 import { useEffect } from "react";
@@ -74,7 +75,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 py-12">
+      <section className="max-w-6xl mx-auto px-4 pt-12 pb-4">
+        <PetOfDay />
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between gap-2 mb-6">
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
