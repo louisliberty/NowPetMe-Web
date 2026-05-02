@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Heart, Upload, Trophy, Home, Menu, X, LogIn, LogOut, User } from "lucide-react";
+import { Heart, Upload, Trophy, Home, Menu, X, LogIn, LogOut, User, Flame, Star } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -57,10 +57,22 @@ export function Navbar() {
               <>
                 {user ? (
                   <div className="flex items-center gap-2 ml-2">
-                    <span className="text-sm text-muted-foreground flex items-center gap-1" data-testid="text-username">
-                      <User className="w-3.5 h-3.5" />
-                      {user.username}
-                    </span>
+                    {typeof user.level === "number" && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1" data-testid="text-user-level">
+                        <Star className="w-3 h-3 fill-current" /> Lv {user.level}
+                      </span>
+                    )}
+                    {user.votingStreak !== undefined && user.votingStreak > 0 && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold flex items-center gap-1" data-testid="text-user-streak">
+                        <Flame className="w-3 h-3" /> {user.votingStreak}
+                      </span>
+                    )}
+                    <Link href={`/user/${user.username}`} data-testid="link-user-profile">
+                      <Button variant="ghost" size="sm">
+                        <User className="w-3.5 h-3.5 mr-1" />
+                        {user.username}
+                      </Button>
+                    </Link>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -122,10 +134,13 @@ export function Navbar() {
               <>
                 {user ? (
                   <>
-                    <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-1" data-testid="text-mobile-username">
-                      <User className="w-3.5 h-3.5" />
-                      {user.username}
-                    </div>
+                    <Link href={`/user/${user.username}`} data-testid="link-mobile-user-profile">
+                      <Button variant="ghost" className="w-full justify-start" onClick={() => setMobileOpen(false)}>
+                        <User className="w-3.5 h-3.5 mr-2" />
+                        {user.username}
+                        {typeof user.level === "number" && <span className="ml-auto text-xs text-primary">Lv {user.level}</span>}
+                      </Button>
+                    </Link>
                     <Button
                       variant="ghost"
                       className="w-full justify-start"

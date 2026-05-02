@@ -57,6 +57,15 @@ export function PetCard({ pet, rank }: PetCardProps) {
           {pet.breed && (
             <p className="text-xs text-muted-foreground truncate mt-0.5">{pet.breed}</p>
           )}
+          {pet.personalityTags && pet.personalityTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {pet.personalityTags.slice(0, 2).map((t) => (
+                <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary" data-testid={`tag-${pet.id}-${t}`}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-1 mt-2">
             <div className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />

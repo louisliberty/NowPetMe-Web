@@ -7,6 +7,12 @@ type AuthUser = {
   username: string;
   email: string;
   emailVerified: boolean;
+  xp?: number;
+  level?: number;
+  xpForNextLevel?: number;
+  xpForCurrentLevel?: number;
+  votingStreak?: number;
+  bio?: string | null;
 };
 
 type AuthContextType = {

@@ -10,7 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon, MoreVertical, Pencil, Trash2, Share2 } from "lucide-react";
+import { Star, Link2, Check as CheckIcon, MessageCircle, Clock, Send, ArrowLeft, LogIn, ThumbsUp, User as UserIcon, MoreVertical, Pencil, Trash2, Share2, Flag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { VoteBurst } from "@/components/vote-burst";
 import { AnimatedNumber } from "@/components/animated-number";
 import { ShareCardModal } from "@/components/share-card-modal";
@@ -70,6 +72,33 @@ export default function PetProfile() {
   const [burstRating, setBurstRating] = useState<number | null>(null);
   const [starFlash, setStarFlash] = useState(false);
   const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+
+  const reportMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/reports", { targetType: "pet", targetId: petId, reason: reportReason });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Report submitted", description: "Thanks for keeping NowPetMe safe." });
+      setReportOpen(false);
+      setReportReason("");
+    },
+    onError: () => toast({ title: "Failed to submit report", variant: "destructive" }),
+  });
+
+  const reactionMutation = useMutation({
+    mutationFn: async ({ commentId, emoji }: { commentId: number; emoji: string }) => {
+      const res = await apiRequest("POST", `/api/comments/${commentId}/reactions`, { emoji });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets", petId.toString(), "comments"] });
+    },
+  });
+
+  const REACTION_EMOJIS = ["❤️", "😂", "😮", "🐾", "👏"];
 
   const { data: pet, isLoading: petLoading } = useQuery<Pet & { hasVoted: boolean }>({
     queryKey: ["/api/pets", petId.toString()],
@@ -307,6 +336,34 @@ export default function PetProfile() {
             </div>
           </div>
           <ShareCardModal pet={pet} open={shareCardOpen} onOpenChange={setShareCardOpen} />
+
+          <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+            <DialogTrigger asChild>
+              <button className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 mt-2" data-testid="button-report-pet">
+                <Flag className="w-3 h-3" /> Report this pet
+              </button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Report pet</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">Tell us what's wrong. Pets reported by 5+ people are auto-hidden.</p>
+              <Textarea
+                placeholder="Reason (optional)"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value.slice(0, 280))}
+                maxLength={280}
+                rows={3}
+                data-testid="textarea-report-reason"
+              />
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setReportOpen(false)} data-testid="button-cancel-report">Cancel</Button>
+                <Button variant="destructive" onClick={() => reportMutation.mutate()} disabled={reportMutation.isPending} data-testid="button-submit-report">
+                  Submit Report
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -436,23 +493,48 @@ export default function PetProfile() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm" data-testid={`comment-text-${comment.id}`}>{comment.text}</p>
-                    <button
-                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
-                        comment.hasLiked
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-                      }`}
-                      onClick={() => likeMutation.mutate(comment.id)}
-                      disabled={likeMutation.isPending}
-                      data-testid={`button-like-comment-${comment.id}`}
-                    >
-                      <ThumbsUp className={`w-3.5 h-3.5 ${comment.hasLiked ? "fill-current" : ""}`} />
-                      {comment.likeCount > 0 && (
-                        <span data-testid={`like-count-${comment.id}`}>{comment.likeCount}</span>
-                      )}
-                    </button>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm" data-testid={`comment-text-${comment.id}`}>{comment.text}</p>
+                      <button
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
+                          comment.hasLiked
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                        }`}
+                        onClick={() => likeMutation.mutate(comment.id)}
+                        disabled={likeMutation.isPending}
+                        data-testid={`button-like-comment-${comment.id}`}
+                      >
+                        <ThumbsUp className={`w-3.5 h-3.5 ${comment.hasLiked ? "fill-current" : ""}`} />
+                        {comment.likeCount > 0 && (
+                          <span data-testid={`like-count-${comment.id}`}>{comment.likeCount}</span>
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {REACTION_EMOJIS.map((emoji) => {
+                        const r = comment.reactions?.find((x) => x.emoji === emoji);
+                        const count = r?.count || 0;
+                        const mine = !!r?.mine;
+                        return (
+                          <button
+                            key={emoji}
+                            onClick={() => reactionMutation.mutate({ commentId: comment.id, emoji })}
+                            disabled={reactionMutation.isPending}
+                            className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                              mine
+                                ? "bg-primary/10 border-primary text-primary"
+                                : "bg-background border-border text-muted-foreground hover:border-primary"
+                            }`}
+                            data-testid={`button-reaction-${comment.id}-${emoji}`}
+                          >
+                            <span>{emoji}</span>
+                            {count > 0 && <span className="ml-1">{count}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

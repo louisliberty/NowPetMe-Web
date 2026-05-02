@@ -14,6 +14,9 @@ import CategoryPage from "@/pages/category";
 import Leaderboard from "@/pages/leaderboard";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
+import UserProfilePage from "@/pages/user-profile";
 
 function Router() {
   return (
@@ -25,6 +28,9 @@ function Router() {
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/user/:username" component={UserProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { Upload, ImagePlus, X, Check, Copy, LogIn, Mail } from "lucide-react";
-import { insertPetSchema, CATEGORIES } from "@shared/schema";
+import { insertPetSchema, CATEGORIES, PERSONALITY_TAGS } from "@shared/schema";
 import type { Pet } from "@shared/schema";
 
 const uploadFormSchema = insertPetSchema.extend({
@@ -45,6 +45,18 @@ export default function UploadPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [createdPet, setCreatedPet] = useState<Pet | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
+      if (prev.length >= 5) {
+        toast({ title: "Maximum 5 tags", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, tag];
+    });
+  };
 
   useEffect(() => {
     document.title = "Upload Your Pet - NowPetMe";
@@ -127,6 +139,7 @@ export default function UploadPage() {
       formData.append("category", values.category);
       if (values.breed) formData.append("breed", values.breed);
       if (values.story) formData.append("story", values.story);
+      formData.append("personalityTags", JSON.stringify(selectedTags));
       if (file) formData.append("photo", file);
 
       const res = await fetch("/api/pets", {
@@ -141,10 +154,15 @@ export default function UploadPage() {
       }
       return res.json() as Promise<Pet>;
     },
-    onSuccess: (pet) => {
+    onSuccess: (pet: any) => {
       setCreatedPet(pet);
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pets/top"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      const newAch = (pet?._newAchievements || []) as string[];
+      if (newAch.length > 0) {
+        toast({ title: "Achievement unlocked!", description: newAch.join(", ") });
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
@@ -323,6 +341,33 @@ export default function UploadPage() {
               </FormItem>
             )}
           />
+
+          <div>
+            <label className="text-sm font-medium leading-none">Personality (optional, up to 5)</label>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {PERSONALITY_TAGS.map((tag) => {
+                const active = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-foreground border-border hover:border-primary"
+                    }`}
+                    data-testid={`tag-toggle-${tag}`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTags.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1.5">{selectedTags.length}/5 selected</p>
+            )}
+          </div>
 
           <FormField
             control={form.control}

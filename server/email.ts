@@ -72,6 +72,30 @@ export async function sendPetOfTheDayEmail(to: string, petName: string, petId: n
   });
 }
 
+export async function sendPasswordResetEmail(to: string, token: string, baseUrl: string) {
+  const { client, fromEmail } = await getUncachableResendClient();
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+  await client.emails.send({
+    from: fromEmail || 'NowPetMe <onboarding@resend.dev>',
+    to,
+    subject: 'Reset your NowPetMe password',
+    html: `
+      <div style="font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+        <h1 style="color: #FF6B6B; margin-bottom: 12px;">Reset your password</h1>
+        <p style="color: #333; font-size: 15px; line-height: 1.6;">
+          Someone (hopefully you!) requested a password reset for your NowPetMe account. Click the button below to choose a new password. This link expires in 1 hour.
+        </p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #FF6B6B; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendVerificationEmail(to: string, token: string, baseUrl: string) {
   const { client, fromEmail } = await getUncachableResendClient();
   const verifyUrl = `${baseUrl}/api/auth/verify?token=${token}`;

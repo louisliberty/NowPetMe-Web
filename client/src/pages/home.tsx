@@ -5,7 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PetCard } from "@/components/pet-card";
 import { CategoryButtons } from "@/components/category-buttons";
 import { PetOfDay } from "@/components/pet-of-day";
-import { Heart, Upload, Trophy, ArrowRight, Sparkles } from "lucide-react";
+import { Heart, Upload, Trophy, ArrowRight, Sparkles, Flame, Shuffle } from "lucide-react";
+import { useLocation } from "wouter";
 import type { Pet } from "@shared/schema";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +14,21 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function Home() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const handleSurprise = async () => {
+    try {
+      const res = await fetch("/api/pets/random");
+      if (!res.ok) {
+        toast({ title: "No pets to surprise you with yet!", variant: "destructive" });
+        return;
+      }
+      const pet: Pet = await res.json();
+      navigate(`/pet/${pet.id}`);
+    } catch {
+      toast({ title: "Couldn't find a random pet", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     document.title = "NowPetMe - Prove Your Pet's the Cutest!";
@@ -34,6 +50,10 @@ export default function Home() {
 
   const { data: recentPets, isLoading: recentLoading } = useQuery<Pet[]>({
     queryKey: ["/api/pets", "?sort=newest&limit=8"],
+  });
+
+  const { data: hotPets, isLoading: hotLoading } = useQuery<Pet[]>({
+    queryKey: ["/api/pets/hot", "?limit=8"],
   });
 
   return (
@@ -58,7 +78,7 @@ export default function Home() {
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Upload your furry friend's best photo, let the world vote, and climb the leaderboards. Every pet deserves their moment in the spotlight.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 flex-wrap">
             <Link href="/upload">
               <Button size="lg" data-testid="button-hero-upload">
                 <Upload className="w-5 h-5 mr-2" />
@@ -71,6 +91,10 @@ export default function Home() {
                 View Leaderboard
               </Button>
             </Link>
+            <Button variant="outline" size="lg" onClick={handleSurprise} data-testid="button-surprise-me">
+              <Shuffle className="w-5 h-5 mr-2" />
+              Surprise Me
+            </Button>
           </div>
         </div>
       </section>
@@ -116,6 +140,34 @@ export default function Home() {
             <Heart className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>No rated pets yet. Be the first to upload!</p>
           </div>
+        )}
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Flame className="w-6 h-6 text-orange-500" />
+              Hot This Week
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">Pets with the most votes in the last 7 days</p>
+          </div>
+        </div>
+        {hotLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="aspect-square rounded-md" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ))}
+          </div>
+        ) : hotPets && hotPets.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {hotPets.slice(0, 8).map((pet) => <PetCard key={pet.id} pet={pet} />)}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-8">No hot pets yet — start voting!</p>
         )}
       </section>
 

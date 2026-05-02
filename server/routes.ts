@@ -1,13 +1,13 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { sendVerificationEmail, sendPetOfTheDayEmail } from "./email";
+import { sendVerificationEmail, sendPetOfTheDayEmail, sendPasswordResetEmail } from "./email";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { insertPetSchema, insertVoteSchema, insertCommentSchema, registerSchema, loginSchema } from "@shared/schema";
+import { insertPetSchema, insertVoteSchema, insertCommentSchema, registerSchema, loginSchema, reportSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, ACHIEVEMENT_DEFS, levelFromXp, xpForLevel, XP_PER_VOTE, XP_PER_UPLOAD, XP_PER_COMMENT, PERSONALITY_TAGS } from "@shared/schema";
 import { moderateImage } from "./moderation";
 
 const uploadsDir = path.resolve("uploads");
@@ -106,6 +106,12 @@ export async function registerRoutes(
         username: user.username,
         email: user.email,
         emailVerified: user.emailVerified,
+        xp: user.xp,
+        level: levelFromXp(user.xp),
+        xpForNextLevel: xpForLevel(levelFromXp(user.xp) + 1),
+        xpForCurrentLevel: xpForLevel(levelFromXp(user.xp)),
+        votingStreak: user.votingStreak,
+        bio: user.bio,
       });
     } catch (error) {
       console.error("Register error:", error);
@@ -137,6 +143,12 @@ export async function registerRoutes(
         username: user.username,
         email: user.email,
         emailVerified: user.emailVerified,
+        xp: user.xp,
+        level: levelFromXp(user.xp),
+        xpForNextLevel: xpForLevel(levelFromXp(user.xp) + 1),
+        xpForCurrentLevel: xpForLevel(levelFromXp(user.xp)),
+        votingStreak: user.votingStreak,
+        bio: user.bio,
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -169,7 +181,88 @@ export async function registerRoutes(
       username: user.username,
       email: user.email,
       emailVerified: user.emailVerified,
+      xp: user.xp,
+      level: levelFromXp(user.xp),
+      xpForNextLevel: xpForLevel(levelFromXp(user.xp) + 1),
+      xpForCurrentLevel: xpForLevel(levelFromXp(user.xp)),
+      votingStreak: user.votingStreak,
+      bio: user.bio,
     });
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const parsed = forgotPasswordSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid email" });
+      const user = await storage.getUserByEmail(parsed.data.email);
+      if (user) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiry = new Date(Date.now() + 60 * 60 * 1000);
+        await storage.setResetToken(user.id, token, expiry);
+        try { await sendPasswordResetEmail(user.email, token, getBaseUrl(req)); }
+        catch (e) { console.error("Reset email failed:", e); }
+      }
+      res.json({ message: "If that email exists, a reset link has been sent." });
+    } catch (e) {
+      console.error("forgot-password error:", e);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const parsed = resetPasswordSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
+      const user = await storage.getUserByResetToken(parsed.data.token);
+      if (!user) return res.status(400).json({ message: "Invalid or expired reset link" });
+      const hash = await bcrypt.hash(parsed.data.password, 10);
+      await storage.updatePassword(user.id, hash);
+      res.json({ message: "Password updated. You can now log in." });
+    } catch (e) {
+      console.error("reset-password error:", e);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.get("/api/users/:username", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const [userPets, achievements] = await Promise.all([
+        storage.getUserPets(user.id),
+        storage.getAchievements(user.id),
+      ]);
+      const totalVotesReceived = userPets.reduce((s, p) => s + p.voteCount, 0);
+      res.json({
+        username: user.username,
+        bio: user.bio,
+        xp: user.xp,
+        level: levelFromXp(user.xp),
+        xpForNextLevel: xpForLevel(levelFromXp(user.xp) + 1),
+        xpForCurrentLevel: xpForLevel(levelFromXp(user.xp)),
+        votingStreak: user.votingStreak,
+        createdAt: user.createdAt,
+        pets: userPets,
+        achievements: achievements.map((a) => {
+          const def = ACHIEVEMENT_DEFS.find((d) => d.code === a.code);
+          return { code: a.code, unlockedAt: a.unlockedAt, label: def?.label || a.code, emoji: def?.emoji || "⭐", description: def?.description || "" };
+        }),
+        totalVotesReceived,
+        petCount: userPets.length,
+      });
+    } catch (e) {
+      console.error("get user error:", e);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.patch("/api/users/me", requireAuth, async (req, res) => {
+    try {
+      const parsed = updateProfileSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+      if (parsed.data.bio !== undefined) await storage.updateUserBio(req.session.userId!, parsed.data.bio);
+      res.json({ message: "Updated" });
+    } catch (e) { res.status(500).json({ message: "Failed" }); }
   });
 
   app.get("/api/auth/verify", async (req, res) => {
@@ -237,12 +330,55 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/pets/random", async (_req, res) => {
+    try {
+      const pet = await storage.getRandomPet();
+      if (!pet) return res.status(404).json({ message: "No pets available" });
+      res.json(pet);
+    } catch (e) { res.status(500).json({ message: "Failed" }); }
+  });
+
+  app.get("/api/pets/hot", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 12;
+      const pets = await storage.getHotPets(limit);
+      res.json(pets);
+    } catch (e) { res.status(500).json({ message: "Failed to fetch hot pets" }); }
+  });
+
+  app.post("/api/reports", async (req, res) => {
+    try {
+      const parsed = reportSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid report" });
+      const ip = hashIp(getClientIp(req));
+      const result = await storage.createReport(parsed.data.targetType, parsed.data.targetId, ip, parsed.data.reason);
+      res.json(result);
+    } catch (e) {
+      console.error("report error:", e);
+      res.status(500).json({ message: "Failed to submit report" });
+    }
+  });
+
+  app.post("/api/comments/:id/reactions", async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      const emoji = (req.body?.emoji || "").toString();
+      if (!["❤️", "😂", "😮", "🐾", "👏"].includes(emoji)) {
+        return res.status(400).json({ message: "Invalid emoji" });
+      }
+      const ip = hashIp(getClientIp(req));
+      const result = await storage.toggleReaction(commentId, ip, emoji);
+      res.json(result);
+    } catch (e) { res.status(500).json({ message: "Failed" }); }
+  });
+
   app.get("/api/pets/of-the-day", async (req, res) => {
     try {
       const result = await storage.getOrSelectPetOfTheDay();
       if (!result) return res.json(null);
       const { pet, isNew } = result;
       if (isNew && pet.ownerId) {
+        await storage.unlockAchievement(pet.ownerId, "potd_owner");
         const owner = await storage.getUserById(pet.ownerId);
         if (owner?.email && owner.emailVerified) {
           const avg = pet.voteCount > 0 ? (pet.totalScore / pet.voteCount).toFixed(1) : "0.0";
@@ -272,7 +408,7 @@ export async function registerRoutes(
   app.get("/api/pets/:id", async (req, res) => {
     try {
       const pet = await storage.getPet(parseInt(req.params.id));
-      if (!pet) {
+      if (!pet || pet.hidden) {
         return res.status(404).json({ message: "Pet not found" });
       }
       const ip = hashIp(getClientIp(req));
@@ -306,12 +442,21 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Photo rejected: ${moderation.reason}` });
       }
 
+      let tags: string[] = [];
+      try {
+        const raw = req.body.personalityTags;
+        if (typeof raw === "string" && raw.length) tags = JSON.parse(raw);
+        else if (Array.isArray(raw)) tags = raw;
+      } catch {}
+      tags = tags.filter((t) => (PERSONALITY_TAGS as readonly string[]).includes(t)).slice(0, 5);
+
       const petData = {
         name: req.body.name,
         category: req.body.category,
         breed: req.body.breed || null,
         photoUrl: `/uploads/${req.file.filename}`,
         story: req.body.story || null,
+        personalityTags: tags,
       };
 
       const parsed = insertPetSchema.safeParse(petData);
@@ -320,8 +465,14 @@ export async function registerRoutes(
       }
 
       const pet = await storage.createPet(parsed.data, ip, req.session.userId);
-      res.status(201).json(pet);
+
+      const xpResult = await storage.addXp(req.session.userId!, XP_PER_UPLOAD);
+      const newAch: string[] = [...xpResult.newAchievements];
+      if (await storage.unlockAchievement(req.session.userId!, "first_upload")) newAch.push("first_upload");
+
+      res.status(201).json({ ...pet, _xp: xpResult, _newAchievements: newAch });
     } catch (error) {
+      console.error("Create pet error:", error);
       res.status(500).json({ message: "Failed to create pet" });
     }
   });
@@ -352,8 +503,21 @@ export async function registerRoutes(
 
       await storage.createVote(petId, score, ip);
       const updatedPet = await storage.getPet(petId);
-      res.json(updatedPet);
+
+      let xpResult: any = null;
+      let streakResult: any = null;
+      const newAchievements: string[] = [];
+      if (req.session.userId) {
+        xpResult = await storage.addXp(req.session.userId, XP_PER_VOTE);
+        streakResult = await storage.updateVotingStreak(req.session.userId);
+        const voteMilestones = await storage.incrementVotesCast(req.session.userId);
+        newAchievements.push(...xpResult.newAchievements, ...streakResult.newAchievements, ...voteMilestones.newAchievements);
+        if (await storage.unlockAchievement(req.session.userId, "first_vote")) newAchievements.push("first_vote");
+      }
+
+      res.json({ ...updatedPet, _xp: xpResult, _streak: streakResult, _newAchievements: newAchievements });
     } catch (error) {
+      console.error("Vote error:", error);
       res.status(500).json({ message: "Failed to vote" });
     }
   });
@@ -363,8 +527,11 @@ export async function registerRoutes(
       const petId = parseInt(req.params.id);
       const ip = hashIp(getClientIp(req));
       const petComments = await storage.getComments(petId, ip);
-      res.json(petComments);
+      const ids = petComments.map((c) => c.id);
+      const reactionsByComment = await storage.getCommentReactions(ids, ip);
+      res.json(petComments.map((c) => ({ ...c, reactions: reactionsByComment[c.id] || [] })));
     } catch (error) {
+      console.error("Fetch comments error:", error);
       res.status(500).json({ message: "Failed to fetch comments" });
     }
   });
@@ -392,8 +559,15 @@ export async function registerRoutes(
 
       const ip = hashIp(getClientIp(req));
       const comment = await storage.createComment(petId, commentData.data.text, ip, req.session.userId);
-      res.status(201).json(comment);
+
+      const newAchievements: string[] = [];
+      const xpResult = await storage.addXp(req.session.userId!, XP_PER_COMMENT);
+      newAchievements.push(...xpResult.newAchievements);
+      if (await storage.unlockAchievement(req.session.userId!, "first_comment")) newAchievements.push("first_comment");
+
+      res.status(201).json({ ...comment, _xp: xpResult, _newAchievements: newAchievements });
     } catch (error) {
+      console.error("Create comment error:", error);
       res.status(500).json({ message: "Failed to create comment" });
     }
   });
