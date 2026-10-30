@@ -4,3 +4,9 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+# NowPetMe PHP backend: secrets and local files never go to GitHub
+nowpetme-config.php
+php-api/public/api/config.php
+php-api/tests/*.sqlite
+.env
+site/
