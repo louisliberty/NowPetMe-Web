@@ -1,8 +1,8 @@
 # Hosting NowPetMe on HostGator (PHP + MySQL)
 
-This repo now contains two backends. The original Node/Express one (`server/`) still works on Replit or any
-Node host. The new one in **`php-api/`** is a drop-in PHP/MySQL replacement that runs on HostGator's
-shared hosting (Baby plan). The React front end is unchanged: it is built once and uploaded as static files.
+NowPetMe runs on HostGator shared hosting as a React front end (built into static files) plus a PHP/MySQL API in
+**`php-api/`**. The earlier Node/Express version (used on Replit) was removed from `main`; it is preserved on the
+`node-backup` branch if you ever need it.
 
 ```
 GitHub push to main ──► GitHub Actions ──► builds React (vite) + merges php-api/public ──► FTP to public_html
@@ -105,4 +105,3 @@ Each run also saves the finished site as a downloadable zip (`nowpetme-site`) if
 * Basic abuse limits are built in: login (20 per 15 min per IP), sign-ups (10/hour), password resets (5/hour), reports (30/hour).
 * Uploaded photos are re-encoded (stripping GPS/EXIF location data) and capped at 1600px, which saves bandwidth on shared hosting.
 * Tests: `python3 php-api/tests/run_tests.py` runs the whole API against a throwaway SQLite database (needs PHP 8.1+ and Python `requests`).
-* The Node server, `.replit`, and Replit-specific files are no longer needed for HostGator and can be deleted whenever you like.
