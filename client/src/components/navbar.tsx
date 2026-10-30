@@ -32,7 +32,7 @@ export function Navbar() {
         <div className="flex items-center justify-between gap-2 h-16">
           <Link href="/" data-testid="link-home-logo">
             <div className="flex items-center gap-2 cursor-pointer">
-              <img src="/logo.svg" alt="" className="w-9 h-9" width={36} height={36} />
+              <img src="/logo.svg?v=2" alt="" className="w-9 h-9" width={36} height={36} />
               <span className="text-lg font-bold tracking-tight">NowPetMe</span>
             </div>
           </Link>
