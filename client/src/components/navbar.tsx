@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Heart, Upload, Trophy, Home, Menu, X, LogIn, LogOut, User, Flame, Star } from "lucide-react";
+import { Upload, Trophy, Home, Menu, X, LogIn, LogOut, User, Flame, Star } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -32,9 +32,7 @@ export function Navbar() {
         <div className="flex items-center justify-between gap-2 h-16">
           <Link href="/" data-testid="link-home-logo">
             <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
-              </div>
+              <img src="/logo.svg" alt="" className="w-9 h-9" width={36} height={36} />
               <span className="text-lg font-bold tracking-tight">NowPetMe</span>
             </div>
           </Link>
