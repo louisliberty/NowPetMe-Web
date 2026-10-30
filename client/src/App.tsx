@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +18,15 @@ import RegisterPage from "@/pages/register";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import UserProfilePage from "@/pages/user-profile";
+
+// Every page change starts at the top (a single-page app keeps the old scroll position otherwise).
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+  return null;
+}
 
 function Router() {
   return (
@@ -42,6 +52,7 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <div className="min-h-screen bg-background text-foreground">
+            <ScrollToTop />
             <Navbar />
             <EmailVerificationBanner />
             <main>
