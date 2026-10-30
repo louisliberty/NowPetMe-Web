@@ -1,0 +1,64 @@
+name: Deploy to HostGator
+
+# Builds the React app, merges it with the PHP backend (php-api/public) and uploads the result
+# to HostGator over FTP(S) every time you push to main. Add the secrets listed in HOSTGATOR_SETUP.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostgator
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build React app
+        run: npx vite build
+
+      - name: Lint PHP
+        run: find php-api/public -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Assemble site (React build + PHP backend)
+        run: |
+          mkdir -p site
+          cp -R dist/public/. site/
+          cp -R php-api/public/. site/
+          rm -f site/uploads/.gitkeep
+          test -f site/index.html && test -f site/api/index.php && test -f site/.htaccess
+
+      - name: Keep a downloadable copy (for manual upload via cPanel File Manager)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nowpetme-site
+          path: site/
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload to HostGator
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          port: ${{ vars.FTP_PORT || 21 }}
+          local-dir: ./site/
+          server-dir: ${{ secrets.FTP_DIR || 'public_html/' }}
+          # Never touch photos people have uploaded.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            uploads/**
