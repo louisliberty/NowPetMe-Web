@@ -50,8 +50,8 @@ It must not be inside `public_html`, and it is already in `.gitignore` so it nev
 | `openai_api_key` | https://platform.openai.com → API keys (needs billing). Without it, **every upload is rejected** (the app fails closed, like the Replit version) |
 | `trust_proxy_header` | Leave empty unless you put Cloudflare in front, then `CF-Connecting-IP` |
 
-> If your site lives in a sub-folder or is an *addon domain* rather than the main `public_html`, put the config
-> file one level above that site's folder, or ask HostGator support to help set the `NOWPETME_CONFIG` environment variable.
+> The site finds this file automatically if it is in your **home folder** (e.g. `/home3/youracct/nowpetme-config.php`). That works whether
+> nowpetme.com is your main domain (`public_html`) or an addon domain (`public_html/nowpetme.com`).
 
 ### 5. Free SSL (cPanel → SSL/TLS Status)
 Run **AutoSSL** for your domain and wait until it shows a valid certificate. The `.htaccess` redirects all traffic to

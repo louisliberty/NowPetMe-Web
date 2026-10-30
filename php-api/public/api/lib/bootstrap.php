@@ -38,7 +38,10 @@ function load_config(): array
 {
     $candidates = array_filter([
         getenv('NOWPETME_CONFIG') ?: null,
+        // One folder above the site's web root (main domain: /home/user/public_html -> /home/user).
         !empty($_SERVER['DOCUMENT_ROOT']) ? dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/\\')) . '/nowpetme-config.php' : null,
+        // Two folders above (addon domain: /home/user/public_html/example.com -> /home/user).
+        !empty($_SERVER['DOCUMENT_ROOT']) ? dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/\\'), 2) . '/nowpetme-config.php' : null,
         dirname(__DIR__) . '/config.php',
     ]);
     foreach ($candidates as $file) {
