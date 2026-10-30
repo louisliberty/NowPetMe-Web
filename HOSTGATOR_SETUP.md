@@ -34,7 +34,7 @@ make sure these are ticked: `pdo_mysql` (or `mysqlnd`), `gd`, `curl`, `mbstring`
 
 ### 3. Create the tables (cPanel → phpMyAdmin)
 1. Select your database → **Import** → choose `php-api/database/schema.sql` → *Go*.
-2. Optional: import `php-api/database/seed.sql` to add the 5 sample pets (Buddy, Whiskers, Rio, Snowball, Neptune).
+2. Optional: import `php-api/database/seed.sql` to add 5 starter pets (Buddy, Whiskers, Rio, Snowball, Neptune) with zero votes, so every rating on the site is real.
 
 ### 4. Create the secrets file
 Copy `php-api/nowpetme-config.sample.php` to a file named **`nowpetme-config.php`**, fill it in, and upload it
