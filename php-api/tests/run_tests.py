@@ -268,6 +268,10 @@ try:
     check('pet page keeps React root', '<div id="root"></div>' in r.text)
     check('missing pet 404 still serves app', requests.get(f'{BASE}/pet/9999').status_code == 404)
     check('SPA fallback', '<div id="root">' in requests.get(BASE + '/leaderboard').text)
+    print('sitemap')
+    sm = requests.get(BASE + '/sitemap.xml')
+    check('sitemap is XML', sm.status_code == 200 and 'xml' in sm.headers.get('Content-Type', '') and sm.text.startswith('<?xml'), sm.text[:200])
+    check('sitemap lists pet page and categories', f'/pet/{pid}</loc>' in sm.text and '/category/dog</loc>' in sm.text and '/leaderboard</loc>' in sm.text)
 finally:
     server.terminate()
     log = open(os.path.join(tmp, 'php.log')).read()

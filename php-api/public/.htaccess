@@ -17,6 +17,9 @@ RewriteRule ^api(/.*)?$ api/index.php [L,QSA]
 # Pet pages get server-rendered share tags (title, description, image) so links preview nicely.
 RewriteRule ^pet/([0-9]+)/?$ seo.php?id=$1 [L,QSA]
 
+# XML sitemap is generated from the database.
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
 # Everything else that is not a real file is the React app (client-side routing).
 RewriteCond %{REQUEST_URI} !^/uploads/
 RewriteCond %{REQUEST_FILENAME} !-f
